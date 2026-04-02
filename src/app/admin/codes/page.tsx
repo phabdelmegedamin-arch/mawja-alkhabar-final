@@ -37,11 +37,10 @@ export default function CodesPage() {
 
   return (
     <AdminLayout activeTab={2}>
-      <div className="space-y-4 p-6">
+     <div className="space-y-4 p-6">
         <h2 className="text-lg font-black">🏷️ أكواد الاشتراك</h2>
-        <div className="card p-4">
+          <div className="card p-4">
           <h3 className="text-sm font-bold mb-3">إضافة كود جديد</h3>
-          <div className="flex flex-wrap gap-2 items-end">
             <div className="flex gap-2 items-center">
               <input value={newCode} onChange={e=>setNewCode(e.target.value.toUpperCase())} placeholder="MW-XXXX-XXXX" dir="ltr"
                 className="px-3 py-2 text-sm rounded-lg bg-bg3 border border-b-2 text-tx w-48 font-mono" />
