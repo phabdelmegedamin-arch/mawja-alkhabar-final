@@ -36,11 +36,10 @@ export default function CodesPage() {
   const del    = async (code: string) => { if(!confirm('حذف الكود؟')) return; await fetch('/api/codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',code})}); load() }
 
   return (
-  <AdminLayout activeTab={2}>
+    <AdminLayout activeTab={2}>
       <div className="space-y-4 p-6">
         <h2 className="text-lg font-black">🏷️ أكواد الاشتراك</h2>
-     
-        {/* Add form */}
+
         <div className="card p-4">
           <h3 className="text-sm font-bold mb-3">إضافة كود جديد</h3>
           <div className="flex flex-wrap gap-2 items-end">
@@ -58,7 +57,6 @@ export default function CodesPage() {
           {msg && <p className={`text-xs mt-2 ${msg.startsWith('✅')?'text-gr':'text-rd'}`}>{msg}</p>}
         </div>
 
-        {/* Table */}
         <div className="card overflow-hidden">
           <div className="flex justify-between items-center px-4 py-3 border-b border-b-1">
             <span className="text-sm font-bold">{codes.length} كود</span>
