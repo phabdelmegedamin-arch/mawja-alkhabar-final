@@ -37,7 +37,7 @@ export default function CodesPage() {
 
   return (
     <AdminLayout activeTab={2}>
-      <div className="space-y-4 p-6">
+      <div className="space-y-4">
         <h2 className="text-lg font-black">🏷️ أكواد الاشتراك</h2>
 
         <div className="card p-4">
