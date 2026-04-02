@@ -1,0 +1,51 @@
+// ══════════════════════════════════════════════════
+// Supabase Client — موجة الخبر
+// ══════════════════════════════════════════════════
+import { createBrowserClient } from '@supabase/ssr'
+import { createServerClient as _createServerClient } from '@supabase/ssr'
+import type { Database } from '@/types/supabase'
+
+// ── Browser Client (Client Components) ────────────
+export function createClient() {
+  return createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+// ── Server Client (Server Components / API Routes) ─
+export function createServerClient(
+  cookieStore: import('next/headers').ReadonlyRequestCookies
+) {
+  return _createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll:    () => cookieStore.getAll(),
+        setAll: (toSet) => {
+          try {
+            toSet.forEach(({ name, value, options }) =>
+              // @ts-expect-error — cookies() may be readonly in some contexts
+              cookieStore.set(name, value, options)
+            )
+          } catch { /* called from Server Component — ignore */ }
+        },
+      },
+    }
+  )
+}
+
+// ── Admin Client (API Routes with service role) ────
+export function createAdminClient() {
+  // Never expose SUPABASE_SERVICE_ROLE_KEY to browser
+  if (typeof window !== 'undefined') {
+    throw new Error('Admin client cannot be used in browser')
+  }
+  const { createClient: createSBClient } = require('@supabase/supabase-js')
+  return createSBClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}

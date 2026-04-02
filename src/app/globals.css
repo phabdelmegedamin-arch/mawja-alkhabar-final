@@ -1,0 +1,245 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════
+   موجة الخبر — Bloomberg Dark Theme
+   ══════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ── CSS Custom Properties ── */
+:root {
+  --bg:    #0D1117;
+  --bg2:   #161B22;
+  --bg3:   #1C2128;
+  --bg4:   #21262D;
+  --b1:    #30363D;
+  --b2:    #3D444D;
+  --b3:    #484F58;
+  --tx:    #E6EDF3;
+  --t2:    #8B949E;
+  --t3:    #484F58;
+  --ac:    #00E5FF;
+  --ac2:   rgba(0,229,255,0.12);
+  --acl:   rgba(0,229,255,0.08);
+  --gr:    #00D47A;
+  --gr2:   rgba(0,212,122,0.12);
+  --rd:    #FF3355;
+  --rd2:   rgba(255,51,85,0.12);
+  --yl:    #F0C93A;
+  --yl2:   rgba(240,201,58,0.12);
+  --or:    #FF7A1A;
+  --or2:   rgba(255,122,26,0.12);
+  --pu:    #9B6EFF;
+  --pu2:   rgba(155,110,255,0.12);
+  --mono:  'IBM Plex Mono', monospace;
+  --sans:  'Tajawal', 'Cairo', sans-serif;
+}
+
+/* ── Base Reset ── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    direction: rtl;
+    font-family: var(--sans);
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg text-tx;
+    min-height: 100dvh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px
+      );
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar              { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track        { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb        { background: var(--b2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover  { background: var(--b3); }
+
+  /* Selection */
+  ::selection { background: var(--ac2); color: var(--ac); }
+
+  a    { color: var(--ac); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  h1,h2,h3,h4,h5,h6 { font-weight: 700; color: var(--tx); }
+
+  input, textarea, select {
+    background: var(--bg3);
+    border: 1px solid var(--b2);
+    color: var(--tx);
+    border-radius: 8px;
+    font-family: var(--sans);
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--ac);
+    box-shadow: 0 0 0 3px var(--ac2);
+  }
+
+  button { cursor: pointer; font-family: var(--sans); }
+}
+
+/* ── Components ── */
+@layer components {
+
+  /* Card */
+  .card {
+    @apply bg-bg2 rounded-lg border border-b-1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  /* Panel */
+  .panel {
+    @apply card p-4;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--t3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Tag chips */
+  .tag {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold;
+  }
+  .tag-pos { background: var(--gr2); color: var(--gr); }
+  .tag-neg { background: var(--rd2); color: var(--rd); }
+  .tag-neu { background: var(--yl2); color: var(--yl); }
+  .tag-ac  { background: var(--ac2); color: var(--ac); }
+
+  /* Score bar */
+  .score-bar {
+    @apply relative h-1.5 rounded-full overflow-hidden;
+    background: var(--b1);
+  }
+  .score-bar-fill {
+    @apply absolute inset-y-0 right-0 rounded-full transition-all duration-700;
+  }
+
+  /* Loading shimmer */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--bg3) 25%,
+      var(--bg4) 50%,
+      var(--bg3) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  /* Live dot */
+  .live-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+    background: var(--gr);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+
+  /* Monospace number */
+  .mono-num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Direction-aware flex for RTL/LTR */
+  .flex-rtl { @apply flex flex-row-reverse; }
+
+  /* Ticker bar item */
+  .ticker-item {
+    @apply inline-flex items-center gap-2 px-4 text-xs whitespace-nowrap;
+  }
+
+  /* Wave indicator */
+  .wave-1 { color: var(--ac); border-color: var(--ac); }
+  .wave-2 { color: var(--or); border-color: var(--or); }
+  .wave-3 { color: var(--gr); border-color: var(--gr); }
+
+  /* Admin table */
+  .adm-table {
+    @apply w-full text-sm border-collapse;
+  }
+  .adm-table th {
+    @apply text-right py-2 px-3 font-semibold text-tx-2;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--b1);
+  }
+  .adm-table td {
+    @apply py-2 px-3;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+  }
+  .adm-table tr:hover td { background: var(--bg3); }
+}
+
+/* ── Utilities ── */
+@layer utilities {
+  .text-pos  { color: var(--gr) !important; }
+  .text-neg  { color: var(--rd) !important; }
+  .text-neu  { color: var(--yl) !important; }
+  .text-ac   { color: var(--ac) !important; }
+  .text-mono { font-family: var(--mono); }
+
+  .bg-pos    { background: var(--gr2); }
+  .bg-neg    { background: var(--rd2); }
+  .bg-neu    { background: var(--yl2); }
+
+  .border-pos { border-color: var(--gr); }
+  .border-neg { border-color: var(--rd); }
+  .border-neu { border-color: var(--yl); }
+
+  .rtl { direction: rtl; }
+  .ltr { direction: ltr; }
+
+  .font-display { font-weight: 800; letter-spacing: -0.01em; }
+
+  /* Safe area padding for mobile */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top:    env(safe-area-inset-top);    }
+}
+
+/* ── Animations ── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1);    }
+  50%     { opacity: 0.4; transform: scale(0.8); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes ticker-scroll {
+  from { transform: translateX(0);     }
+  to   { transform: translateX(-50%);  }
+}
+
+.animate-ticker { animation: ticker-scroll 35s linear infinite; }
+.animate-slide-up { animation: slide-up 0.3s ease-out; }
+.animate-fade-in  { animation: fade-in 0.2s ease-out;  }
+
+/* ── Mobile Bottom Nav ── */
+@media (max-width: 768px) {
+  .main-content { padding-bottom: 70px; }
+}
