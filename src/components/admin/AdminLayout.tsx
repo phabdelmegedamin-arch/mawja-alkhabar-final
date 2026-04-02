@@ -12,12 +12,11 @@ const TABS = [
 ]
 
 interface Props {
-  activeTab:   number
-  onTabChange: (n: number) => void
-  onLogout:    () => void
+  children:  React.ReactNode
+  activeTab?: string
 }
 
-export default function AdminLayout({ activeTab, onTabChange, onLogout }: Props) {
+export default function AdminLayout({ children }: Props) {
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Header */}
