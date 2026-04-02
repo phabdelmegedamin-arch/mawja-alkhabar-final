@@ -36,7 +36,7 @@ export default function CodesPage() {
   const del    = async (code: string) => { if(!confirm('حذف الكود؟')) return; await fetch('/api/codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',code})}); load() }
 
   return (
-    <AdminLayout activeTab="codes">
+    <AdminLayout activeTab={2}>
       <div className="space-y-4">
         <h2 className="text-lg font-black">🎫 أكواد الاشتراك</h2>
 
