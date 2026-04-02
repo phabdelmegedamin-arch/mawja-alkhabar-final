@@ -1,18 +1,18 @@
 'use client'
 import { useState, useEffect } from 'react'
 import AdminLayout from '@/components/admin/AdminLayout'
-import { Button, Badge, Input } from '@/components/ui'
+import { Button, Badge } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
 interface Code { code: string; note?: string; plan: string; active: boolean; expiry?: string; created_at: string; used_by?: string; last_used_at?: string }
 
 export default function CodesPage() {
-  const [codes, setCodes]   = useState<Code[]>([])
+  const [codes, setCodes] = useState<Code[]>([])
   const [loading, setLoading] = useState(true)
   const [newCode, setNewCode] = useState('')
-  const [note, setNote]       = useState('')
-  const [expiry, setExpiry]   = useState('')
-  const [msg, setMsg]         = useState('')
+  const [note, setNote] = useState('')
+  const [expiry, setExpiry] = useState('')
+  const [msg, setMsg] = useState('')
 
   const load = async () => { setLoading(true); const res = await fetch('/api/codes'); const d = await res.json(); setCodes(d.data??[]); setLoading(false) }
   useEffect(() => { load() }, [])
@@ -25,7 +25,7 @@ export default function CodesPage() {
 
   const add = async () => {
     if (!newCode) return
-    const res  = await fetch('/api/codes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'create', code:newCode, note, expiry: expiry||undefined }) })
+    const res = await fetch('/api/codes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'create', code:newCode, note, expiry: expiry||undefined }) })
     const data = await res.json()
     if (data.success) { setMsg('✅ تم الإضافة'); setNewCode(''); setNote(''); setExpiry(''); load() }
     else setMsg('❌ '+data.error)
@@ -33,13 +33,12 @@ export default function CodesPage() {
   }
 
   const toggle = async (code: string) => { await fetch('/api/codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle',code})}); load() }
-  const del    = async (code: string) => { if(!confirm('حذف الكود؟')) return; await fetch('/api/codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',code})}); load() }
+  const del = async (code: string) => { if(!confirm('حذف الكود؟')) return; await fetch('/api/codes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',code})}); load() }
 
   return (
     <AdminLayout activeTab={2}>
-      <div className="space-y-4">
+      <div className="space-y-4 p-6">
         <h2 className="text-lg font-black">🏷️ أكواد الاشتراك</h2>
-
         <div className="card p-4">
           <h3 className="text-sm font-bold mb-3">إضافة كود جديد</h3>
           <div className="flex flex-wrap gap-2 items-end">
@@ -56,7 +55,6 @@ export default function CodesPage() {
           </div>
           {msg && <p className={`text-xs mt-2 ${msg.startsWith('✅')?'text-gr':'text-rd'}`}>{msg}</p>}
         </div>
-
         <div className="card overflow-hidden">
           <div className="flex justify-between items-center px-4 py-3 border-b border-b-1">
             <span className="text-sm font-bold">{codes.length} كود</span>
@@ -94,3 +92,4 @@ export default function CodesPage() {
     </AdminLayout>
   )
 }
+```
