@@ -33,7 +33,8 @@ export default function SignalBar({ result }: Props) {
   const topStocks = stocks.slice(0, 5)
 
   return (
-    <div className="card mb-4 overflow-hidden" style={{ borderRight: '3px solid ' + col }}>
+    <div className="card mb-4 overflow-hidden" style={{ borderRight: '3px solid ' + col }}
+>
       {/* Head */}
       <div className="flex items-center gap-3 p-4">
         <div
