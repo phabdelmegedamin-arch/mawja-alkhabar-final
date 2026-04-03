@@ -22,7 +22,7 @@ export function useAuth() {
           .then(({ data: profile }) => {
             setSession({
               id:        sbSession.user.id,
-              name:      profile?.name ?? profile?.username ?? sbSession.user.email ?? '',
+              name: (profile as any)?.name ?? (profile as any)?.username ?? sbSession.user.email ?? '',
               email:     sbSession.user.email,
               plan:      (profile?.plan as any) ?? 'free',
               token:     sbSession.access_token,
