@@ -26,13 +26,13 @@ export async function POST(req: NextRequest) {
       const newAvg   = (existing.avg_price * existing.qty + avgPrice * qty) / newQty
       await (supabase.from('portfolio') as any).update({ qty: newQty, avg_price: newAvg, updated_at: new Date().toISOString() }).eq('id', existing.id)
     } else {
-      await supabase.from('portfolio').insert({ user_id: user.id, ticker, name, qty, avg_price: avgPrice, sector })
+      await (supabase.from('portfolio') as any).insert({ user_id: user.id, ticker, name, qty, avg_price: avgPrice, sector })
     }
     return NextResponse.json({ success: true })
   }
 
   if (action === 'remove') {
-    await supabase.from('portfolio').delete().eq('user_id', user.id).eq('ticker', ticker)
+    await (supabase.from('portfolio') as any).delete().eq('user_id', user.id).eq('ticker', ticker)
     return NextResponse.json({ success: true })
   }
 
