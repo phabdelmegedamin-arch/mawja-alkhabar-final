@@ -8,12 +8,10 @@ export function useAuth() {
   const { session, setSession, setLoading, logout, isPro, isAdmin } = useAuthStore()
   const supabase = createClient()
 
-  // Sync Supabase session on mount
   useEffect(() => {
     setLoading(true)
     supabase.auth.getSession().then(({ data: { session: sbSession } }) => {
       if (sbSession?.user) {
-        // fetch profile
         supabase
           .from('profiles')
           .select('username, name, plan, status, expires_at')
@@ -22,21 +20,19 @@ export function useAuth() {
           .then(({ data: profile }) => {
             setSession({
               id:        sbSession.user.id,
-              name: (profile as any)?.name ?? (profile as any)?.username ?? sbSession.user.email ?? '',
+              name:      (profile as any)?.name ?? (profile as any)?.username ?? sbSession.user.email ?? '',
               email:     sbSession.user.email,
-              plan: ((profile as any)?.plan) ?? 'free',
+              plan:      ((profile as any)?.plan) ?? 'free',
               token:     sbSession.access_token,
               ts:        Date.now(),
               expiresAt: (profile as any)?.expires_at ?? undefined,
             })
+            setLoading(false)
           })
-          .finally(() => setLoading(false))
       } else {
         setLoading(false)
       }
     })
-
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') logout()
     })
