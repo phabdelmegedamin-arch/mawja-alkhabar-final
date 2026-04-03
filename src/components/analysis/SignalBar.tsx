@@ -35,7 +35,7 @@ export default function SignalBar({ result }: Props) {
   return (
     <div
       className="card mb-4 overflow-hidden"
-      style={{ borderRight: `3px solid ${col}` }}
+      style={{ borderRight: '3px solid ' + col }}
     >
       {/* Head */}
       <div className="flex items-center gap-3 p-4">
