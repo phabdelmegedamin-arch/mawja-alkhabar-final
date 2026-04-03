@@ -22,11 +22,10 @@ export function createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll:    () => cookieStore.getAll(),
-        setAll: (toSet) => {
+        getAll: () => cookieStore.getAll(),
+        setAll: (toSet: any[]) => {
           try {
             toSet.forEach(({ name, value, options }) =>
-              // @ts-expect-error — cookies() may be readonly in some contexts
               cookieStore.set(name, value, options)
             )
           } catch { /* called from Server Component — ignore */ }
@@ -38,7 +37,6 @@ export function createServerClient(
 
 // ── Admin Client (API Routes with service role) ────
 export function createAdminClient() {
-  // Never expose SUPABASE_SERVICE_ROLE_KEY to browser
   if (typeof window !== 'undefined') {
     throw new Error('Admin client cannot be used in browser')
   }
