@@ -26,7 +26,7 @@ export default function AdminLayout({ children }: Props) {
           <span className="text-ac font-black">🌊 موجة الخبر</span>
           <span className="text-tx-3 text-xs">Admin Panel</span>
         </div>
-        <button onClick={onLogout}
+        <button onClick={logout}
           className="text-xs text-rd hover:text-rd/80 border border-rd/30
                      px-3 py-1.5 rounded-lg transition-colors">
           ✕ خروج
