@@ -24,10 +24,10 @@ export function useAuth() {
               id:        sbSession.user.id,
               name: (profile as any)?.name ?? (profile as any)?.username ?? sbSession.user.email ?? '',
               email:     sbSession.user.email,
-              plan:      (profile?.plan as any) ?? 'free',
+              plan: ((profile as any)?.plan) ?? 'free',
               token:     sbSession.access_token,
               ts:        Date.now(),
-              expiresAt: profile?.expires_at ?? undefined,
+              expiresAt: (profile as any)?.expires_at ?? undefined,
             })
           })
           .finally(() => setLoading(false))
