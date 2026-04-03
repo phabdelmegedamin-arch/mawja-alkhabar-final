@@ -46,13 +46,13 @@ export default function SignalBar({ result }: Props) {
           {dir === 'pos' ? '📈' : dir === 'neg' ? '📉' : '➡️'}
         </div>
         <div className="flex-1">
-          <div className="text-base font-black" style={{ color }}>
+          <div className="text-base font-black" style={{ color: col }}
             {verdicts[dir]}
           </div>
           <div className="text-xs text-tx-3 mt-0.5">{subTexts[dir]}</div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-black font-mono" style={{ color }}>{abs}</div>
+          <div className="text-2xl font-black font-mono" style={{ color: col }}
           <div className="text-2xs text-tx-3">تأثير %</div>
         </div>
       </div>
