@@ -15,7 +15,7 @@ export function createClient() {
 
 // ── Server Client (Server Components / API Routes) ─
 export function createServerClient(
-  cookieStore: import('next/headers').ReadonlyRequestCookies
+  cookieStore: any
 ) {
   return _createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
