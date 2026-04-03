@@ -20,11 +20,11 @@ export async function POST(req: NextRequest) {
   const { action, ticker, name } = await req.json()
 
   if (action === 'add') {
-    await supabase.from('watchlist').upsert({ user_id: user.id, ticker, name }, { onConflict: 'user_id,ticker' })
+    await (supabase.from('watchlist') as any).upsert({ user_id: user.id, ticker, name }, { onConflict: 'user_id,ticker' })
     return NextResponse.json({ success: true })
   }
   if (action === 'remove') {
-    await supabase.from('watchlist').delete().eq('user_id', user.id).eq('ticker', ticker)
+    await (supabase.from('watchlist') as any).delete().eq('user_id', user.id).eq('ticker', ticker)
     return NextResponse.json({ success: true })
   }
   return NextResponse.json({ success: false, error: 'action غير معروف' }, { status: 400 })
