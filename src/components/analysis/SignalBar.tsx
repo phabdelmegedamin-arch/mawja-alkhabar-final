@@ -12,7 +12,7 @@ export default function SignalBar({ result }: Props) {
   const dir  = sentiment.dir
   const abs  = Math.abs(sentiment.score)
   const col  = sentimentColor(dir)
-  const db   = DB as Record<string, { label: string; icon: string }>
+  const db = DB as {[key: string]: { label: string; icon: string }}
   const primaryLabel = db[primary]?.label ?? primary
 
   const verdicts = {
