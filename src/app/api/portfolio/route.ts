@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
       const newQty   = existing.qty + qty
       const newAvg   = (existing.avg_price * existing.qty + avgPrice * qty) / newQty
-      await supabase.from('portfolio').update({ qty: newQty, avg_price: newAvg, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      await (supabase.from('portfolio') as any).update({ qty: newQty, avg_price: newAvg, updated_at: new Date().toISOString() }).eq('id', existing.id)
     } else {
       await supabase.from('portfolio').insert({ user_id: user.id, ticker, name, qty, avg_price: avgPrice, sector })
     }
