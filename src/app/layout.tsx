@@ -20,10 +20,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  width:                 'device-width',
-  initialScale:          1,
-  themeColor:            '#0D1117',
-  colorScheme:           'dark',
+  width:        'device-width',
+  initialScale: 1,
+  themeColor:   '#0D1117',
+  colorScheme:  'dark',
 }
 
 export default function RootLayout({
@@ -32,8 +32,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ar" dir="rtl" className="dark">
-      <body className="antialiased">
+    <html lang="ar" dir="rtl">
+      <body
+        className="antialiased"
+        style={{
+          background: '#0D1117',
+          color: '#E6EDF3',
+          minHeight: '100dvh',
+          fontFamily: "'Tajawal', 'Cairo', sans-serif",
+        }}
+      >
         {children}
       </body>
     </html>
