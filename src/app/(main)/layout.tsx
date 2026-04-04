@@ -4,10 +4,18 @@ import TickerBar from '@/components/layout/TickerBar'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: '#0D1117' }}>
       <Header />
       <TickerBar />
-      <main className="flex-1 main-content max-w-5xl mx-auto w-full px-3 md:px-6 py-4">
+      <main
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '16px 16px 80px',
+        }}
+      >
         {children}
       </main>
       <BottomNav />
