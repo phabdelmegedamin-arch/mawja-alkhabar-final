@@ -22,22 +22,22 @@ export default function AdminDashboard() {
   const session = useAuthStore(s => s.session)
   const logout  = useAuthStore(s => s.logout)
 
-  const [tab, setTab]       = useState(0)
-  const [dirty, setDirty]   = useState(false)
+  const [tab, setTab]         = useState(0)
+  const [dirty, setDirty]     = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
-  const [codes, setCodes]   = useState<any[]>([])
-  const [subs,  setSubs]    = useState<any[]>([])
+  const [codes, setCodes]     = useState<any[]>([])
+  const [subs,  setSubs]      = useState<any[]>([])
   const [history, setHistory] = useState<any[]>([])
-  const [apiKey, setApiKey] = useState('')
-  const [apiMsg, setApiMsg] = useState('')
+  const [apiKey, setApiKey]   = useState('')
+  const [apiMsg, setApiMsg]   = useState('')
   const [codeForm, setCodeForm] = useState({ code: '', note: '', expiry: '' })
   const [codeMsg,  setCodeMsg]  = useState('')
   const [pwdForm, setPwdForm]   = useState({ old: '', new1: '', new2: '' })
   const [pwdMsg,  setPwdMsg]    = useState('')
-  const [admins, setAdmins] = useState([{ name: 'Abdulmageedamin', role: 'رئيسي' }])
+  const [admins, setAdmins]     = useState<Array<{ username: string; role: string }>>([])
   const [newAdmin, setNewAdmin] = useState({ username: '', password: '', confirm: '' })
+  const [adminMsg, setAdminMsg] = useState('')
 
-  // بيانات الأسهم والكلمات المفتاحية من market-db
   const allStocks = SECTOR_ORDER.flatMap(sec =>
     (DB[sec]?.stocks ?? []).map(s => ({ ...s, sector: sec, sectorLabel: DB[sec].label }))
   )
@@ -62,6 +62,7 @@ export default function AdminDashboard() {
     setHistory(h)
     loadCodes()
     loadSubs()
+    loadAdmins()
   }, [])
 
   const loadCodes = async () => {
@@ -80,7 +81,17 @@ export default function AdminDashboard() {
     } catch {}
   }
 
-  // ✅ حفظ حقيقي
+  const loadAdmins = async () => {
+    try {
+      const res = await fetch('/api/admins')
+      const d   = await res.json()
+      if (d.success) setAdmins(d.data.map((a: any) => ({
+        username: a.username,
+        role: a.role === 'main' ? 'رئيسي' : 'فرعي',
+      })))
+    } catch {}
+  }
+
   const handleSave = () => {
     localStorage.setItem('anthropic_key', apiKey)
     setDirty(false)
@@ -88,14 +99,8 @@ export default function AdminDashboard() {
     setTimeout(() => setSaveMsg(''), 2500)
   }
 
-  // ✅ تصدير JSON
   const handleExport = () => {
-    const data = {
-      exportedAt: new Date().toISOString(),
-      stats,
-      history: history.slice(0, 50),
-      codes,
-    }
+    const data = { exportedAt: new Date().toISOString(), stats, history: history.slice(0, 50), codes }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
@@ -103,7 +108,6 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url)
   }
 
-  // ✅ إعادة ضبط سجل التحليلات
   const handleReset = () => {
     if (!confirm('سيتم مسح سجل التحليلات المحلي. متابعة؟')) return
     localStorage.removeItem('mw_history_v2')
@@ -119,23 +123,23 @@ export default function AdminDashboard() {
   const addCode = async () => {
     if (!codeForm.code) return
     const res = await fetch('/api/codes', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'create', code: codeForm.code, note: codeForm.note, expiry: codeForm.expiry || undefined }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create', code: codeForm.code, note: codeForm.note, expiry: codeForm.expiry || undefined }),
     })
     const d = await res.json()
-    if (d.success) { setCodeMsg('✅ تم الإضافة'); setCodeForm({ code:'', note:'', expiry:'' }); loadCodes() }
+    if (d.success) { setCodeMsg('✅ تم الإضافة'); setCodeForm({ code: '', note: '', expiry: '' }); loadCodes() }
     else setCodeMsg('❌ ' + d.error)
     setTimeout(() => setCodeMsg(''), 3000)
   }
 
   const toggleCode = async (code: string) => {
-    await fetch('/api/codes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'toggle', code }) })
+    await fetch('/api/codes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'toggle', code }) })
     loadCodes()
   }
 
   const deleteCode = async (code: string) => {
     if (!confirm('حذف الكود؟')) return
-    await fetch('/api/codes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'delete', code }) })
+    await fetch('/api/codes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', code }) })
     loadCodes()
   }
 
@@ -145,7 +149,42 @@ export default function AdminDashboard() {
     setTimeout(() => setApiMsg(''), 3000)
   }
 
-  // ── Styles ──────────────────────────────────────
+  const addAdmin = async () => {
+    if (!newAdmin.username || !newAdmin.password) return
+    if (newAdmin.password !== newAdmin.confirm) {
+      setAdminMsg('❌ كلمتا المرور غير متطابقتين'); return
+    }
+    const msgBuffer  = new TextEncoder().encode(newAdmin.password)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+    const hashArray  = Array.from(new Uint8Array(hashBuffer))
+    const password_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    const res = await fetch('/api/admins', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', username: newAdmin.username, password_hash, role: 'sub' }),
+    })
+    const d = await res.json()
+    if (d.success) {
+      setAdminMsg('✅ تم إضافة الأدمن')
+      setNewAdmin({ username: '', password: '', confirm: '' })
+      loadAdmins()
+    } else {
+      setAdminMsg('❌ ' + d.error)
+    }
+    setTimeout(() => setAdminMsg(''), 3000)
+  }
+
+  const removeAdmin = async (username: string) => {
+    if (!confirm('حذف الأدمن؟')) return
+    const res = await fetch('/api/admins', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', username }),
+    })
+    const d = await res.json()
+    if (d.success) loadAdmins()
+    else alert('❌ ' + d.error)
+  }
+
+  // ── Styles ──
   const s: React.CSSProperties = {
     minHeight: '100vh', background: '#0D1117', color: '#E6EDF3',
     fontFamily: 'Tajawal, Cairo, sans-serif', direction: 'rtl',
@@ -180,8 +219,13 @@ export default function AdminDashboard() {
     borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem',
     fontWeight: '700', fontFamily: 'inherit',
   })
-  const th: React.CSSProperties = { padding: '8px', textAlign: 'right', color: '#8B949E', fontWeight: '600', fontSize: '0.78rem', borderBottom: '1px solid #30363D' }
-  const td: React.CSSProperties = { padding: '8px 10px', fontSize: '0.82rem', borderBottom: '1px solid #21262D' }
+  const th: React.CSSProperties = {
+    padding: '8px', textAlign: 'right', color: '#8B949E',
+    fontWeight: '600', fontSize: '0.78rem', borderBottom: '1px solid #30363D',
+  }
+  const td: React.CSSProperties = {
+    padding: '8px 10px', fontSize: '0.82rem', borderBottom: '1px solid #21262D',
+  }
 
   return (
     <div style={s}>
@@ -212,17 +256,17 @@ export default function AdminDashboard() {
       {/* Content */}
       <div style={{ maxWidth:'1200px', margin:'0 auto', padding:'24px 16px' }}>
 
-        {/* ── TAB 0: إحصائيات ── */}
+        {/* TAB 0: إحصائيات */}
         {tab === 0 && (
           <div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:'12px', marginBottom:'24px' }}>
               {[
-                { n: stats.analyses, l: 'تحليل مسجّل',   c:'#00E5FF' },
-                { n: stats.keywords, l: 'كلمة مفتاحية',  c:'#00D47A' },
-                { n: stats.stocks,   l: 'سهم',            c:'#FF7A1A' },
-                { n: stats.sectors,  l: 'قطاع',           c:'#9B6EFF' },
-                { n: stats.codes,    l: 'كود اشتراك',     c:'#F0C93A' },
-                { n: stats.subs,     l: 'مشترك',          c:'#00D47A' },
+                { n: stats.analyses, l: 'تحليل مسجّل',  c:'#00E5FF' },
+                { n: stats.keywords, l: 'كلمة مفتاحية', c:'#00D47A' },
+                { n: stats.stocks,   l: 'سهم',           c:'#FF7A1A' },
+                { n: stats.sectors,  l: 'قطاع',          c:'#9B6EFF' },
+                { n: stats.codes,    l: 'كود اشتراك',    c:'#F0C93A' },
+                { n: stats.subs,     l: 'مشترك',         c:'#00D47A' },
               ].map((x,i) => (
                 <div key={i} style={{ ...card, textAlign:'center' }}>
                   <div style={{ fontSize:'2rem', fontWeight:'900', color:x.c, fontFamily:'monospace' }}>{x.n}</div>
@@ -238,7 +282,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 1: الأسهم ── */}
+        {/* TAB 1: الأسهم */}
         {tab === 1 && (
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
@@ -247,22 +291,20 @@ export default function AdminDashboard() {
             <div style={card}>
               <table style={{ width:'100%', borderCollapse:'collapse' }}>
                 <thead>
-                  <tr>
-                    {['الكود','اسم السهم','القطاع','التصنيف','الوزن'].map(h => <th key={h} style={th}>{h}</th>)}
-                  </tr>
+                  <tr>{['الكود','اسم السهم','القطاع','التصنيف','الوزن'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {allStocks.map((s, i) => (
                     <tr key={i}>
                       <td style={{ ...td, fontFamily:'monospace', color:'#00E5FF', fontWeight:'700' }}>{s.t}</td>
                       <td style={{ ...td, color:'#E6EDF3' }}>{s.n}</td>
-                      <td style={{ ...td }}>
+                      <td style={td}>
                         <span style={{ background:'#9B6EFF22', color:'#9B6EFF', padding:'2px 8px', borderRadius:'8px', fontSize:'0.72rem' }}>
                           {DB[s.sector]?.icon} {DB[s.sector]?.label}
                         </span>
                       </td>
                       <td style={{ ...td, color:'#8B949E', fontSize:'0.75rem' }}>{s.s}</td>
-                      <td style={{ ...td }}>
+                      <td style={td}>
                         <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                           <div style={{ flex:1, height:'6px', background:'#21262D', borderRadius:'3px', overflow:'hidden' }}>
                             <div style={{ height:'100%', width:`${s.w}%`, background: s.w >= 80 ? '#00D47A' : s.w >= 60 ? '#F0C93A' : '#FF7A1A', borderRadius:'3px' }} />
@@ -278,7 +320,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 2: الكلمات المفتاحية ── */}
+        {/* TAB 2: الكلمات المفتاحية */}
         {tab === 2 && (
           <div>
             <div style={{ marginBottom:'16px' }}>
@@ -295,10 +337,9 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
                   {DB[sec].kw.map((kw, i) => (
-                    <span key={i} style={{
-                      background:'#21262D', color:'#E6EDF3', padding:'4px 10px',
-                      borderRadius:'20px', fontSize:'0.78rem', border:'1px solid #30363D',
-                    }}>{kw}</span>
+                    <span key={i} style={{ background:'#21262D', color:'#E6EDF3', padding:'4px 10px', borderRadius:'20px', fontSize:'0.78rem', border:'1px solid #30363D' }}>
+                      {kw}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -306,7 +347,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 3: علاقات القطاعات ── */}
+        {/* TAB 3: علاقات القطاعات */}
         {tab === 3 && (
           <div>
             <div style={{ marginBottom:'16px' }}>
@@ -327,14 +368,9 @@ export default function AdminDashboard() {
                       const pct = Math.round(weight * 100)
                       const col = pct >= 80 ? '#00D47A' : pct >= 60 ? '#F0C93A' : '#FF7A1A'
                       return (
-                        <div key={target} style={{
-                          background:'#21262D', border:`1px solid ${col}33`,
-                          borderRadius:'8px', padding:'8px 12px', minWidth:'140px',
-                        }}>
+                        <div key={target} style={{ background:'#21262D', border:`1px solid ${col}33`, borderRadius:'8px', padding:'8px 12px', minWidth:'140px' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' }}>
-                            <span style={{ fontSize:'0.8rem', color:'#E6EDF3' }}>
-                              {DB[target]?.icon} {DB[target]?.label}
-                            </span>
+                            <span style={{ fontSize:'0.8rem', color:'#E6EDF3' }}>{DB[target]?.icon} {DB[target]?.label}</span>
                             <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight:'700', color:col }}>{pct}%</span>
                           </div>
                           <div style={{ height:'4px', background:'#30363D', borderRadius:'2px' }}>
@@ -350,7 +386,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 4: سجل التحليلات ── */}
+        {/* TAB 4: سجل التحليلات */}
         {tab === 4 && (
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
@@ -366,9 +402,7 @@ export default function AdminDashboard() {
                 <div style={card}>
                   <table style={{ width:'100%', borderCollapse:'collapse' }}>
                     <thead>
-                      <tr>
-                        {['العنوان','التوجه','الثقة','AI','التاريخ'].map(h => <th key={h} style={th}>{h}</th>)}
-                      </tr>
+                      <tr>{['العنوان','التوجه','الثقة','AI','التاريخ'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {history.slice(0,50).map((h:any, i:number) => {
@@ -382,9 +416,7 @@ export default function AdminDashboard() {
                                 {h.headline || h.text?.slice(0,60) || '—'}
                               </div>
                             </td>
-                            <td style={td}>
-                              <span style={{ color:dirColor, fontWeight:'700', fontSize:'0.78rem' }}>{dirLabel}</span>
-                            </td>
+                            <td style={td}><span style={{ color:dirColor, fontWeight:'700', fontSize:'0.78rem' }}>{dirLabel}</span></td>
                             <td style={{ ...td, fontFamily:'monospace', color:'#8B949E' }}>{h.confidence ?? '—'}%</td>
                             <td style={td}>
                               {h.usedAI
@@ -405,7 +437,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 5: إعدادات API ── */}
+        {/* TAB 5: إعدادات API */}
         {tab === 5 && (
           <div style={{ maxWidth:'520px' }}>
             <div style={card}>
@@ -424,7 +456,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 6: الأمان ── */}
+        {/* TAB 6: الأمان */}
         {tab === 6 && (
           <div style={{ maxWidth:'420px' }}>
             <div style={card}>
@@ -450,55 +482,57 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 7: الأدمنز ── */}
+        {/* TAB 7: الأدمنز */}
         {tab === 7 && (
           <div>
             <div style={{ ...card, marginBottom:'16px' }}>
-              <h3 style={{ color:'#00E5FF', marginBottom:'16px' }}>حسابات الأدمنز</h3>
+              <h3 style={{ color:'#00E5FF', marginBottom:'16px' }}>حسابات الأدمنز ({admins.length})</h3>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
                 <thead>
-                  <tr>
-                    {['اسم المستخدم','الصلاحية','إجراء'].map(h => <th key={h} style={th}>{h}</th>)}
-                  </tr>
+                  <tr>{['اسم المستخدم','الصلاحية','إجراء'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {admins.map((a,i) => (
-                    <tr key={i} style={{ borderBottom:'1px solid #21262D' }}>
-                      <td style={{ ...td, fontFamily:'monospace', color:'#00E5FF' }}>{a.name}</td>
-                      <td style={td}>
-                        <span style={{ background: a.role==='رئيسي'?'#00E5FF22':'#FF7A1A22', color: a.role==='رئيسي'?'#00E5FF':'#FF7A1A', padding:'2px 10px', borderRadius:'10px', fontSize:'0.7rem' }}>
-                          {a.role==='رئيسي'?'⭐ رئيسي':'👤 فرعي'}
-                        </span>
-                      </td>
-                      <td style={td}>
-                        {a.role==='رئيسي'
-                          ? <span style={{ color:'#8B949E', fontSize:'0.7rem' }}>محمي</span>
-                          : <button style={btn('#FF3355','#fff')} onClick={() => setAdmins(x => x.filter(z => z.name!==a.name))}>حذف</button>}
-                      </td>
-                    </tr>
-                  ))}
+                  {admins.length === 0
+                    ? <tr><td colSpan={3} style={{ textAlign:'center', padding:'24px', color:'#8B949E' }}>جارٍ التحميل...</td></tr>
+                    : admins.map((a, i) => (
+                      <tr key={i} style={{ borderBottom:'1px solid #21262D' }}>
+                        <td style={{ ...td, fontFamily:'monospace', color:'#00E5FF' }}>{a.username}</td>
+                        <td style={td}>
+                          <span style={{ background: a.role==='رئيسي'?'#00E5FF22':'#FF7A1A22', color: a.role==='رئيسي'?'#00E5FF':'#FF7A1A', padding:'2px 10px', borderRadius:'10px', fontSize:'0.7rem' }}>
+                            {a.role==='رئيسي'?'⭐ رئيسي':'👤 فرعي'}
+                          </span>
+                        </td>
+                        <td style={td}>
+                          {a.role==='رئيسي'
+                            ? <span style={{ color:'#8B949E', fontSize:'0.7rem' }}>محمي</span>
+                            : <button style={btn('#FF3355','#fff')} onClick={() => removeAdmin(a.username)}>حذف</button>}
+                        </td>
+                      </tr>
+                    ))
+                  }
                 </tbody>
               </table>
             </div>
             <div style={card}>
               <h3 style={{ color:'#00E5FF', marginBottom:'16px' }}>➕ إضافة أدمن جديد</h3>
-              {[{k:'username',l:'اسم المستخدم',t:'text'},{k:'password',l:'كلمة المرور',t:'password'},{k:'confirm',l:'تأكيد كلمة المرور',t:'password'}].map(({k,l,t}) => (
+              {([
+                { k:'username', l:'اسم المستخدم',       t:'text'     },
+                { k:'password', l:'كلمة المرور',         t:'password' },
+                { k:'confirm',  l:'تأكيد كلمة المرور',  t:'password' },
+              ] as const).map(({k,l,t}) => (
                 <div key={k} style={{ marginBottom:'12px' }}>
                   <label style={{ display:'block', color:'#8B949E', fontSize:'0.75rem', marginBottom:'4px' }}>{l}</label>
-                  <input style={inp} type={t} value={(newAdmin as any)[k]} onChange={e => setNewAdmin(f => ({...f,[k]:e.target.value}))} />
+                  <input style={inp} type={t} value={newAdmin[k]}
+                    onChange={e => setNewAdmin(f => ({...f,[k]:e.target.value}))} />
                 </div>
               ))}
-              <button style={btn()} onClick={() => {
-                if (!newAdmin.username || !newAdmin.password) return
-                if (newAdmin.password !== newAdmin.confirm) { alert('كلمتا المرور غير متطابقتين'); return }
-                setAdmins(a => [...a, { name: newAdmin.username, role: 'فرعي' }])
-                setNewAdmin({ username:'', password:'', confirm:'' })
-              }}>✅ إضافة</button>
+              <button style={btn()} onClick={addAdmin}>✅ إضافة</button>
+              {adminMsg && <p style={{ color: adminMsg.startsWith('✅')?'#00D47A':'#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{adminMsg}</p>}
             </div>
           </div>
         )}
 
-        {/* ── TAB 8: أكواد الاشتراك ── */}
+        {/* TAB 8: أكواد الاشتراك */}
         {tab === 8 && (
           <div>
             <div style={{ ...card, marginBottom:'16px' }}>
@@ -538,7 +572,9 @@ export default function AdminDashboard() {
                         <td style={{ ...td, color:'#8B949E', fontSize:'0.75rem' }}>{c.used_by||'—'}</td>
                         <td style={td}>
                           <div style={{ display:'flex', gap:'6px' }}>
-                            <button style={{ ...btn('#161B22','#8B949E'), border:'1px solid #30363D' }} onClick={() => toggleCode(c.code)}>{c.active?'تعطيل':'تفعيل'}</button>
+                            <button style={{ ...btn('#161B22','#8B949E'), border:'1px solid #30363D' }} onClick={() => toggleCode(c.code)}>
+                              {c.active?'تعطيل':'تفعيل'}
+                            </button>
                             <button style={btn('#FF3355','#fff')} onClick={() => deleteCode(c.code)}>حذف</button>
                           </div>
                         </td>
@@ -551,7 +587,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── TAB 9: المشتركون ── */}
+        {/* TAB 9: المشتركون */}
         {tab === 9 && (
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
@@ -574,7 +610,9 @@ export default function AdminDashboard() {
                           <span style={{ background:'#00E5FF22', color:'#00E5FF', padding:'2px 8px', borderRadius:'8px', fontSize:'0.7rem' }}>{s.plan}</span>
                         </td>
                         <td style={td}>
-                          <span style={{ background:s.status==='active'?'#00D47A22':'#F0C93A22', color:s.status==='active'?'#00D47A':'#F0C93A', padding:'2px 8px', borderRadius:'8px', fontSize:'0.7rem' }}>{s.status}</span>
+                          <span style={{ background:s.status==='active'?'#00D47A22':'#F0C93A22', color:s.status==='active'?'#00D47A':'#F0C93A', padding:'2px 8px', borderRadius:'8px', fontSize:'0.7rem' }}>
+                            {s.status}
+                          </span>
                         </td>
                         <td style={{ ...td, color:'#8B949E', fontSize:'0.75rem' }}>{s.created_at?.slice(0,10)}</td>
                         <td style={td}>
