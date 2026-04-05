@@ -1,18 +1,36 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { useAnalysisStore } from '@/store/analysis'
-import { cn } from '@/lib/utils'
 
 export default function Header() {
   const { session, logout } = useAuthStore()
   const isPro = session?.plan === 'pro' || session?.plan === 'admin'
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('mw_theme') as 'dark' | 'light' | null
+    if (saved) {
+      setTheme(saved)
+      document.documentElement.setAttribute('data-theme', saved)
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('mw_theme', next)
+    if (next === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between
                        px-4 md:px-6 h-14
                        bg-bg2 border-b border-b-1
                        shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
-
       {/* Logo */}
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg bg-ac flex items-center justify-center
@@ -27,6 +45,7 @@ export default function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+
         {/* Live indicator */}
         <div className="hidden sm:flex items-center gap-1.5 px-2 py-1
                         rounded text-xs text-gr border border-gr/30 bg-gr/5">
@@ -48,7 +67,7 @@ export default function Header() {
             </button>
           </div>
         ) : (
-          <a
+          
             href="/subscribe"
             className="px-3 py-1.5 rounded-lg border border-ac text-ac
                        text-xs font-bold hover:bg-ac hover:text-bg
@@ -58,8 +77,19 @@ export default function Header() {
           </a>
         )}
 
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-8 h-8 rounded-lg border border-b-2 text-tx-3
+                     hover:border-ac hover:text-ac transition-all
+                     flex items-center justify-center text-sm"
+          title={theme === 'dark' ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
         {/* Admin button */}
-        <a
+        
           href="/admin"
           className="w-8 h-8 rounded-lg border border-b-2 text-tx-3
                      hover:border-ac hover:text-ac transition-all
