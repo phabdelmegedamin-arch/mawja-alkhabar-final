@@ -17,15 +17,18 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4">
-      <NewsInput />
-      <AutoFeed onSelectNews={handleSelectNews} />
 
+      {/* ── Input ── */}
+      <NewsInput />
+
+      {/* ── Error ── */}
       {error && (
         <div className="card p-3 border-rd bg-rd2 text-rd text-sm">
           ⚠️ {error}
         </div>
       )}
 
+      {/* ── Empty state ── */}
       {!result && !isLoading && (
         <div className="card p-12 text-center">
           <div className="text-5xl mb-4">📡</div>
@@ -37,9 +40,11 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ── Results — تظهر مباشرة تحت زر التحليل ── */}
       {result && (
         <>
           <SignalBar result={result} />
+
           {result.insight && (
             <div className="card p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -49,6 +54,7 @@ export default function HomePage() {
               <p className="text-sm text-tx-2 leading-relaxed">{result.insight}</p>
             </div>
           )}
+
           <div className="grid md:grid-cols-3 gap-4">
             <SentimentCard result={result} />
             <RippleWaves   result={result} />
@@ -74,6 +80,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+
           <div className="card p-4">
             <h3 className="text-sm font-bold text-tx-2 mb-3">التوقع الزمني للتأثير</h3>
             <div className="flex items-end gap-2 overflow-x-auto pb-2">
@@ -97,6 +104,10 @@ export default function HomePage() {
           </div>
         </>
       )}
+
+      {/* ── أخبار السوق — دائماً في الأسفل ── */}
+      <AutoFeed onSelectNews={handleSelectNews} />
+
     </div>
   )
 }
