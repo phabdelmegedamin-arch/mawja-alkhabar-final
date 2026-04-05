@@ -1,8 +1,4 @@
-الخطأ في السطر 27 — يبدو أن هناك مشكلة في نسخ الكود. المشكلة في useAnalysisStore import اللي حذفته. الكود الصحيح:
-
-المكان: src/components/layout/Header.tsx
-ابدل الملف بالكامل:
-tsx'use client'
+'use client'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 
