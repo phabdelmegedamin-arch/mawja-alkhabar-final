@@ -10,7 +10,6 @@ import { useAnalysisStore } from '@/store/analysis'
 export default function HomePage() {
   const { result, isLoading, error } = useAnalysisStore()
 
-  // إرسال الخبر لـ NewsInput عبر CustomEvent بدلاً من تغيير DOM مباشرة
   const handleSelectNews = useCallback((text: string) => {
     window.dispatchEvent(new CustomEvent('mw:select-news', { detail: { text } }))
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -22,7 +21,9 @@ export default function HomePage() {
       <AutoFeed onSelectNews={handleSelectNews} />
 
       {error && (
-        <div className="card p-3 border-rd bg-rd2 text-rd text-sm">⚠️ {error}</div>
+        <div className="card p-3 border-rd bg-rd2 text-rd text-sm">
+          ⚠️ {error}
+        </div>
       )}
 
       {!result && !isLoading && (
@@ -84,7 +85,8 @@ export default function HomePage() {
                       {pt.v > 0 ? '+' : ''}{pt.v}%
                     </span>
                     <div className="w-full h-1.5 bg-bg3 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${Math.abs(pt.v) / 50 * 100}%`, background: color }} />
+                      <div className="h-full rounded-full"
+                        style={{ width: `${Math.abs(pt.v) / 50 * 100}%`, background: color }} />
                     </div>
                     <span className="text-2xs text-tx-3 font-mono">{pt.l}</span>
                     {pt.active && <div className="w-1.5 h-1.5 rounded-full bg-ac" />}
