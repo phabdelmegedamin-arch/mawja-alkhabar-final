@@ -1,4 +1,8 @@
-'use client'
+الخطأ في السطر 27 — يبدو أن هناك مشكلة في نسخ الكود. المشكلة في useAnalysisStore import اللي حذفته. الكود الصحيح:
+
+المكان: src/components/layout/Header.tsx
+ابدل الملف بالكامل:
+tsx'use client'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 
@@ -27,14 +31,16 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between
-                       px-4 md:px-6 h-14
-                       bg-bg2 border-b border-b-1
-                       shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+    <header
+      className="sticky top-0 z-50 flex items-center justify-between px-4 md:px-6 h-14 bg-bg2 border-b border-b-1"
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+    >
       {/* Logo */}
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-ac flex items-center justify-center
-                        text-bg font-black text-lg leading-none select-none">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg leading-none select-none"
+          style={{ background: 'var(--ac)', color: 'var(--bg)' }}
+        >
           〜
         </div>
         <div className="font-black text-base tracking-tight">
@@ -47,20 +53,25 @@ export default function Header() {
       <div className="flex items-center gap-2">
 
         {/* Live indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2 py-1
-                        rounded text-xs text-gr border border-gr/30 bg-gr/5">
+        <div
+          className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gr"
+          style={{ border: '1px solid rgba(0,212,122,0.3)', background: 'rgba(0,212,122,0.05)' }}
+        >
           <span className="live-dot" />
           LIVE
         </div>
 
         {/* Plan badge */}
         {isPro ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg
-                          bg-ac/10 border border-ac/20 text-ac text-xs font-bold">
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-ac text-xs font-bold"
+            style={{ background: 'var(--ac2)', border: '1px solid rgba(0,229,255,0.2)' }}
+          >
             <span>⭐ Pro — {session?.name}</span>
             <button
               onClick={logout}
-              className="text-rd/70 hover:text-rd transition-colors text-xs ml-1"
+              className="text-xs ml-1"
+              style={{ background: 'none', border: 'none', color: 'var(--rd)', opacity: 0.7 }}
               title="تسجيل الخروج"
             >
               ✕
@@ -69,9 +80,8 @@ export default function Header() {
         ) : (
           
             href="/subscribe"
-            className="px-3 py-1.5 rounded-lg border border-ac text-ac
-                       text-xs font-bold hover:bg-ac hover:text-bg
-                       transition-all duration-200"
+            className="px-3 py-1.5 rounded-lg text-ac text-xs font-bold transition-all duration-200"
+            style={{ border: '1px solid var(--ac)' }}
           >
             اشترك ⭐
           </a>
@@ -80,9 +90,8 @@ export default function Header() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="w-8 h-8 rounded-lg border border-b-2 text-tx-3
-                     hover:border-ac hover:text-ac transition-all
-                     flex items-center justify-center text-sm"
+          className="w-8 h-8 rounded-lg text-tx-3 transition-all flex items-center justify-center text-sm"
+          style={{ border: '1px solid var(--b2)' }}
           title={theme === 'dark' ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'}
         >
           {theme === 'dark' ? '☀️' : '🌙'}
@@ -91,9 +100,8 @@ export default function Header() {
         {/* Admin button */}
         
           href="/admin"
-          className="w-8 h-8 rounded-lg border border-b-2 text-tx-3
-                     hover:border-ac hover:text-ac transition-all
-                     flex items-center justify-center text-sm"
+          className="w-8 h-8 rounded-lg text-tx-3 transition-all flex items-center justify-center text-sm"
+          style={{ border: '1px solid var(--b2)' }}
           title="لوحة الأدمن"
         >
           🛡️
