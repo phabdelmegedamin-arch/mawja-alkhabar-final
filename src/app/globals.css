@@ -32,6 +32,33 @@
   --sans:  'Tajawal', 'Cairo', sans-serif;
 }
 
+/* ── Light Theme ── */
+[data-theme="light"] {
+  --bg:    #F6F8FA;
+  --bg2:   #FFFFFF;
+  --bg3:   #EFF1F3;
+  --bg4:   #E6E9EC;
+  --b1:    #D0D7DE;
+  --b2:    #AFB8C1;
+  --b3:    #8C959F;
+  --tx:    #1F2328;
+  --t2:    #656D76;
+  --t3:    #AFB8C1;
+  --ac:    #0969DA;
+  --ac2:   rgba(9,105,218,0.12);
+  --acl:   rgba(9,105,218,0.08);
+  --gr:    #1A7F37;
+  --gr2:   rgba(26,127,55,0.12);
+  --rd:    #CF222E;
+  --rd2:   rgba(207,34,46,0.12);
+  --yl:    #9A6700;
+  --yl2:   rgba(154,103,0,0.12);
+  --or:    #BC4C00;
+  --or2:   rgba(188,76,0,0.12);
+  --pu:    #6639BA;
+  --pu2:   rgba(102,57,186,0.12);
+}
+
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
 
@@ -49,6 +76,7 @@
     min-height: 100dvh;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    transition: background 0.3s, color 0.3s;
   }
 
   ::-webkit-scrollbar              { width: 6px; height: 6px; }
@@ -184,7 +212,6 @@
   }
   .adm-table tr:hover td { background: var(--bg3); }
 
-  /* Tailwind color overrides */
   .bg-bg  { background-color: var(--bg)  !important; }
   .bg-bg2 { background-color: var(--bg2) !important; }
   .bg-bg3 { background-color: var(--bg3) !important; }
