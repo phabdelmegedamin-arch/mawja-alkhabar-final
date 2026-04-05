@@ -1,5 +1,5 @@
 'use client'
-import { useRef } from 'react'
+import { useCallback } from 'react'
 import NewsInput     from '@/components/analysis/NewsInput'
 import SentimentCard from '@/components/analysis/SentimentCard'
 import RippleWaves   from '@/components/analysis/RippleWaves'
@@ -9,33 +9,22 @@ import { useAnalysisStore } from '@/store/analysis'
 
 export default function HomePage() {
   const { result, isLoading, error } = useAnalysisStore()
-  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  function handleSelectNews(text: string) {
-    const ta = document.querySelector('textarea')
-    if (ta) {
-      ta.value = text
-      ta.dispatchEvent(new Event('input', { bubbles: true }))
-      ta.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
+  // إرسال الخبر لـ NewsInput عبر CustomEvent بدلاً من تغيير DOM مباشرة
+  const handleSelectNews = useCallback((text: string) => {
+    window.dispatchEvent(new CustomEvent('mw:select-news', { detail: { text } }))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   return (
     <div className="space-y-4">
-      {/* Input */}
       <NewsInput />
-
-      {/* Auto Feed — أخبار السوق */}
       <AutoFeed onSelectNews={handleSelectNews} />
 
-      {/* Error */}
       {error && (
-        <div className="card p-3 border-rd bg-rd2 text-rd text-sm">
-          ⚠️ {error}
-        </div>
+        <div className="card p-3 border-rd bg-rd2 text-rd text-sm">⚠️ {error}</div>
       )}
 
-      {/* Empty state */}
       {!result && !isLoading && (
         <div className="card p-12 text-center">
           <div className="text-5xl mb-4">📡</div>
@@ -47,7 +36,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Results */}
       {result && (
         <>
           <SignalBar result={result} />
