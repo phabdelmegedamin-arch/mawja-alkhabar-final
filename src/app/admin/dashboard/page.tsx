@@ -148,7 +148,7 @@ export default function AdminDashboard() {
         <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
           {dirty && <span style={{ color:'#F0C93A', fontSize:'0.75rem' }}>⚠️ تغييرات غير محفوظة</span>}
           <button style={btn('#00D47A')} onClick={() => { setDirty(false) }}>💾 حفظ</button>
-          <button style={btn('#FF3355', '#fff')} onClick={() => { logout(); router.push('/admin') }}>✕ إغلاق</button>
+          <button style={btn('#FF3355','#fff')} onClick={() => { logout(); router.push('/') }}>✕ إغلاق</button>
         </div>
       </div>
 
