@@ -1,4 +1,9 @@
-'use client'
+📁 المسار: src/components/AutoFeed.tsx
+الخطأ المصلح:
+
+Math.random() لتحديد اتجاه الخبر — كان عشوائياً تماماً لا علاقة له بمحتوى الخبر → استبدل بتحليل NLP حقيقي يفحص الكلمات الإيجابية والسلبية
+
+tsx'use client'
 import { useState, useEffect, useCallback } from 'react'
 
 interface FeedItem {
@@ -25,6 +30,27 @@ const DEMO_NEWS: Omit<FeedItem, 'id' | 'fetchedAt' | 'isNew'>[] = [
   { title:'تراجع حركة التداول في ظل ترقب بيانات التضخم الأمريكي', desc:'شهد سوق الأسهم السعودية تراجعاً في حجم التداول مع ترقب المستثمرين للبيانات الأمريكية', source:'تجريبي', link:'', dir:'neu', score:22, sector:'عام', sectorIcon:'📊' },
 ]
 
+// ✅ إصلاح: قواميس NLP بدل Math.random()
+const POS_WORDS = [
+  'ارتفع','ارتفعت','نما','نمو','أرباح','توزيع','إطلاق','افتتاح',
+  'تجاوز','قفز','شراكة','صفقة','تحسن','طفرة','انتعاش','نجح',
+  'زيادة','توسعة','مشروع','استثمار','دعم','تحفيز','ازدهار',
+]
+const NEG_WORDS = [
+  'انخفض','انخفضت','تراجع','تراجعت','هبط','هبطت','خسارة','خسائر',
+  'أزمة','غرامة','تسريح','انهيار','تضرر','ركود','ضغط','تدهور',
+  'إفلاس','انكماش','عقوبات','فشل','رفع الفائدة','تشديد',
+]
+
+function analyzeSentiment(text: string): { dir: 'pos' | 'neg' | 'neu'; score: number } {
+  const t = text.toLowerCase()
+  const ps = POS_WORDS.filter(w => t.includes(w)).length
+  const ns = NEG_WORDS.filter(w => t.includes(w)).length
+  const score = Math.min(92, 20 + Math.max(ps, ns) * 14)
+  const dir: 'pos' | 'neg' | 'neu' = ps > ns ? 'pos' : ns > ps ? 'neg' : 'neu'
+  return { dir, score }
+}
+
 function hashStr(s: string): string {
   let h = 0
   for (let i = 0; i < Math.min(s.length, 50); i++) {
@@ -43,9 +69,9 @@ function timeAgo(ts: number): string {
 }
 
 export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: string) => void }) {
-  const [items, setItems] = useState<FeedItem[]>([])
+  const [items, setItems]   = useState<FeedItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'pos' | 'neg' | 'neu'>('all')
+  const [filter, setFilter]   = useState<'all' | 'pos' | 'neg' | 'neu'>('all')
 
   const loadNews = useCallback(async () => {
     setLoading(true)
@@ -59,19 +85,17 @@ export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: strin
           const fetched: FeedItem[] = data.items.slice(0, 12).map((it: any) => {
             const title = it.title?.replace(/<[^>]+>/g, '').trim() || ''
             const desc  = (it.description || '').replace(/<[^>]+>/g, '').trim().slice(0, 150)
-            const text  = title + ' ' + desc
-            const score = Math.floor(Math.random() * 60) + 20
-            const dir   = score > 55 ? 'pos' : score > 35 ? 'neg' : 'neu'
+            // ✅ تحليل حقيقي بدل Math.random()
+            const { dir, score } = analyzeSentiment(title + ' ' + desc)
             return {
               id: hashStr(title),
               title, desc, source: 'أرقام',
-              link: it.link || '',
+              link:      it.link || '',
               fetchedAt: new Date(it.pubDate || Date.now()).getTime(),
-              dir: dir as 'pos' | 'neg' | 'neu',
-              score,
-              sector: 'السوق السعودي',
+              dir, score,
+              sector:     'السوق السعودي',
               sectorIcon: '📊',
-              isNew: true,
+              isNew:      true,
             }
           })
           setItems(fetched)
@@ -80,12 +104,12 @@ export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: strin
         }
       }
     } catch {}
-    // Fallback
+    // Fallback to demo data
     setItems(DEMO_NEWS.map((d, i) => ({
       ...d,
-      id: hashStr(d.title + i),
+      id:        hashStr(d.title + i),
       fetchedAt: Date.now() - i * 180000,
-      isNew: false,
+      isNew:     false,
     })))
     setLoading(false)
   }, [])
@@ -151,8 +175,8 @@ export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: strin
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-tx-3 text-sm">لا توجد نتائج</div>
         ) : filtered.map(item => {
-          const col = item.dir === 'pos' ? 'var(--gr)' : item.dir === 'neg' ? 'var(--rd)' : 'var(--yl)'
-          const icon = item.dir === 'pos' ? '📈' : item.dir === 'neg' ? '📉' : '➡️'
+          const col  = item.dir === 'pos' ? 'var(--gr)' : item.dir === 'neg' ? 'var(--rd)' : 'var(--yl)'
+          const icon = item.dir === 'pos' ? '📈'        : item.dir === 'neg' ? '📉'        : '➡️'
           return (
             <div
               key={item.id}
