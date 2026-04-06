@@ -17,6 +17,29 @@ const TABS = [
   { id: 9, label: 'المشتركون',         icon: '👥' },
 ]
 
+// ✅ دالة مساعدة لقراءة السجل من مفتاح Zustand الصحيح
+function readHistory(): any[] {
+  try {
+    const stored = localStorage.getItem('mw-analysis')
+    if (!stored) return []
+    const parsed = JSON.parse(stored)
+    return parsed?.state?.history ?? []
+  } catch { return [] }
+}
+
+// ✅ دالة مساعدة لمسح السجل مع الحفاظ على بقية بيانات Zustand
+function clearHistory() {
+  try {
+    const stored = localStorage.getItem('mw-analysis')
+    if (!stored) return
+    const parsed = JSON.parse(stored)
+    if (parsed?.state) {
+      parsed.state.history = []
+      localStorage.setItem('mw-analysis', JSON.stringify(parsed))
+    }
+  } catch {}
+}
+
 export default function AdminDashboard() {
   const router  = useRouter()
   const session = useAuthStore(s => s.session)
@@ -58,8 +81,8 @@ export default function AdminDashboard() {
     if (!session || session.plan !== 'admin') { router.push('/admin'); return }
     const k = localStorage.getItem('anthropic_key') || ''
     setApiKey(k)
-    const h = JSON.parse(localStorage.getItem('mw_history_v2') || '[]')
-    setHistory(h)
+    // ✅ إصلاح 1: قراءة السجل من المفتاح الصحيح mw-analysis
+    setHistory(readHistory())
     loadCodes()
     loadSubs()
     loadAdmins()
@@ -110,7 +133,8 @@ export default function AdminDashboard() {
 
   const handleReset = () => {
     if (!confirm('سيتم مسح سجل التحليلات المحلي. متابعة؟')) return
-    localStorage.removeItem('mw_history_v2')
+    // ✅ إصلاح 2: مسح السجل من المفتاح الصحيح
+    clearHistory()
     setHistory([])
   }
 
@@ -276,7 +300,7 @@ export default function AdminDashboard() {
             </div>
             <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
               <button style={btn('#00D47A')} onClick={handleSave}>💾 حفظ التغييرات</button>
-              <button style={btn('#161B22','#8B949E')} onClick={handleExport}>📤 تصدير JSON</button>
+              <button style={btn('#21262D','#8B949E')} onClick={handleExport}>📤 تصدير JSON</button>
               <button style={btn('#FF3355','#fff')} onClick={handleReset}>🔄 إعادة ضبط</button>
             </div>
           </div>
@@ -392,7 +416,8 @@ export default function AdminDashboard() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
               <h3 style={{ color:'#00E5FF', margin:0 }}>📜 سجل التحليلات ({history.length})</h3>
               <div style={{ display:'flex', gap:'8px' }}>
-                <button style={btn()} onClick={() => { const h = JSON.parse(localStorage.getItem('mw_history_v2')||'[]'); setHistory(h) }}>🔄 تحديث</button>
+                {/* ✅ إصلاح 3: زر التحديث يقرأ من المفتاح الصحيح */}
+                <button style={btn()} onClick={() => setHistory(readHistory())}>🔄 تحديث</button>
                 <button style={btn('#FF3355','#fff')} onClick={handleReset}>🗑️ مسح الكل</button>
               </div>
             </div>
@@ -406,9 +431,9 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody>
                       {history.slice(0,50).map((h:any, i:number) => {
-                        const dir = h.sentiment?.dir
-                        const dirColor = dir==='pos'?'#00D47A':dir==='neg'?'#FF3355':'#F0C93A'
-                        const dirLabel = dir==='pos'?'↑ إيجابي':dir==='neg'?'↓ سلبي':'◎ محايد'
+                        const dir      = h.sentiment?.dir
+                        const dirColor = dir==='pos' ? '#00D47A' : dir==='neg' ? '#FF3355' : '#F0C93A'
+                        const dirLabel = dir==='pos' ? '↑ إيجابي' : dir==='neg' ? '↓ سلبي' : '◎ محايد'
                         return (
                           <tr key={i}>
                             <td style={{ ...td, maxWidth:'300px' }}>
@@ -464,7 +489,7 @@ export default function AdminDashboard() {
               {(['old','new1','new2'] as const).map((k,i) => (
                 <div key={k} style={{ marginBottom:'12px' }}>
                   <label style={{ display:'block', color:'#8B949E', fontSize:'0.75rem', marginBottom:'4px' }}>
-                    {i===0?'كلمة المرور الحالية':i===1?'كلمة المرور الجديدة':'تأكيد كلمة المرور'}
+                    {i===0 ? 'كلمة المرور الحالية' : i===1 ? 'كلمة المرور الجديدة' : 'تأكيد كلمة المرور'}
                   </label>
                   <input style={inp} type="password" value={pwdForm[k]}
                     onChange={e => setPwdForm(f => ({...f,[k]:e.target.value}))} />
@@ -477,7 +502,7 @@ export default function AdminDashboard() {
                 setPwdMsg('✅ تم الحفظ'); setPwdForm({old:'',new1:'',new2:''})
                 setTimeout(() => setPwdMsg(''), 3000)
               }}>🔒 تغيير</button>
-              {pwdMsg && <p style={{ color: pwdMsg.startsWith('✅')?'#00D47A':'#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{pwdMsg}</p>}
+              {pwdMsg && <p style={{ color: pwdMsg.startsWith('✅') ? '#00D47A' : '#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{pwdMsg}</p>}
             </div>
           </div>
         )}
@@ -498,8 +523,8 @@ export default function AdminDashboard() {
                       <tr key={i} style={{ borderBottom:'1px solid #21262D' }}>
                         <td style={{ ...td, fontFamily:'monospace', color:'#00E5FF' }}>{a.username}</td>
                         <td style={td}>
-                          <span style={{ background: a.role==='رئيسي'?'#00E5FF22':'#FF7A1A22', color: a.role==='رئيسي'?'#00E5FF':'#FF7A1A', padding:'2px 10px', borderRadius:'10px', fontSize:'0.7rem' }}>
-                            {a.role==='رئيسي'?'⭐ رئيسي':'👤 فرعي'}
+                          <span style={{ background: a.role==='رئيسي' ? '#00E5FF22' : '#FF7A1A22', color: a.role==='رئيسي' ? '#00E5FF' : '#FF7A1A', padding:'2px 10px', borderRadius:'10px', fontSize:'0.7rem' }}>
+                            {a.role==='رئيسي' ? '⭐ رئيسي' : '👤 فرعي'}
                           </span>
                         </td>
                         <td style={td}>
@@ -516,9 +541,9 @@ export default function AdminDashboard() {
             <div style={card}>
               <h3 style={{ color:'#00E5FF', marginBottom:'16px' }}>➕ إضافة أدمن جديد</h3>
               {([
-                { k:'username', l:'اسم المستخدم',       t:'text'     },
-                { k:'password', l:'كلمة المرور',         t:'password' },
-                { k:'confirm',  l:'تأكيد كلمة المرور',  t:'password' },
+                { k:'username', l:'اسم المستخدم',      t:'text'     },
+                { k:'password', l:'كلمة المرور',        t:'password' },
+                { k:'confirm',  l:'تأكيد كلمة المرور', t:'password' },
               ] as const).map(({k,l,t}) => (
                 <div key={k} style={{ marginBottom:'12px' }}>
                   <label style={{ display:'block', color:'#8B949E', fontSize:'0.75rem', marginBottom:'4px' }}>{l}</label>
@@ -527,7 +552,7 @@ export default function AdminDashboard() {
                 </div>
               ))}
               <button style={btn()} onClick={addAdmin}>✅ إضافة</button>
-              {adminMsg && <p style={{ color: adminMsg.startsWith('✅')?'#00D47A':'#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{adminMsg}</p>}
+              {adminMsg && <p style={{ color: adminMsg.startsWith('✅') ? '#00D47A' : '#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{adminMsg}</p>}
             </div>
           </div>
         )}
@@ -542,14 +567,15 @@ export default function AdminDashboard() {
                   value={codeForm.code}
                   onChange={e => setCodeForm(f=>({...f,code:e.target.value.toUpperCase()}))}
                   placeholder="MW-XXXX-XXXX" />
-                <button style={btn('#161B22','#8B949E')} onClick={genCode}>🎲 توليد</button>
+                {/* ✅ إصلاح 4: لون زر التوليد بدون لون مشفر */}
+                <button style={{ ...btn('#21262D','#8B949E'), border:'1px solid #30363D' }} onClick={genCode}>🎲 توليد</button>
                 <input style={{ ...inp, width:'160px' }} value={codeForm.note}
                   onChange={e => setCodeForm(f=>({...f,note:e.target.value}))} placeholder="ملاحظة" />
                 <input style={{ ...inp, width:'150px' }} type="date" value={codeForm.expiry}
                   onChange={e => setCodeForm(f=>({...f,expiry:e.target.value}))} />
                 <button style={btn()} onClick={addCode}>+ إضافة</button>
               </div>
-              {codeMsg && <p style={{ color: codeMsg.startsWith('✅')?'#00D47A':'#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{codeMsg}</p>}
+              {codeMsg && <p style={{ color: codeMsg.startsWith('✅') ? '#00D47A' : '#FF3355', fontSize:'0.8rem', marginTop:'8px' }}>{codeMsg}</p>}
             </div>
             <div style={card}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
@@ -565,15 +591,15 @@ export default function AdminDashboard() {
                         <td style={{ ...td, color:'#8B949E' }}>{c.note||'—'}</td>
                         <td style={td}>
                           <span style={{ background:c.active?'#00D47A22':'#FF335522', color:c.active?'#00D47A':'#FF3355', padding:'2px 8px', borderRadius:'8px', fontSize:'0.7rem' }}>
-                            {c.active?'نشط':'معطّل'}
+                            {c.active ? 'نشط' : 'معطّل'}
                           </span>
                         </td>
                         <td style={{ ...td, color:'#8B949E', fontSize:'0.75rem' }}>{c.expiry||'—'}</td>
                         <td style={{ ...td, color:'#8B949E', fontSize:'0.75rem' }}>{c.used_by||'—'}</td>
                         <td style={td}>
                           <div style={{ display:'flex', gap:'6px' }}>
-                            <button style={{ ...btn('#161B22','#8B949E'), border:'1px solid #30363D' }} onClick={() => toggleCode(c.code)}>
-                              {c.active?'تعطيل':'تفعيل'}
+                            <button style={{ ...btn('#21262D','#8B949E'), border:'1px solid #30363D' }} onClick={() => toggleCode(c.code)}>
+                              {c.active ? 'تعطيل' : 'تفعيل'}
                             </button>
                             <button style={btn('#FF3355','#fff')} onClick={() => deleteCode(c.code)}>حذف</button>
                           </div>
