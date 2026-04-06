@@ -1,9 +1,4 @@
-📁 المسار: src/components/AutoFeed.tsx
-الخطأ المصلح:
-
-Math.random() لتحديد اتجاه الخبر — كان عشوائياً تماماً لا علاقة له بمحتوى الخبر → استبدل بتحليل NLP حقيقي يفحص الكلمات الإيجابية والسلبية
-
-tsx'use client'
+'use client'
 import { useState, useEffect, useCallback } from 'react'
 
 interface FeedItem {
