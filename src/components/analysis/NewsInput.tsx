@@ -7,34 +7,34 @@ import type { AnalysisResult } from '@/types'
 const FREE_TICKERS = ['أرامكو','aramco','2222','saudi aramco','أرامكو السعودية']
 
 const SA_STOCKS: Record<string, { name: string; sector: string }> = {
-  '2222': { name: 'أرامكو السعودية',       sector: 'الطاقة' },
-  '1180': { name: 'الأهلي السعودي',         sector: 'البنوك' },
-  '1120': { name: 'الراجحي',               sector: 'البنوك' },
-  '2010': { name: 'سابك',                  sector: 'البتروكيماويات' },
-  '7010': { name: 'الاتصالات السعودية',     sector: 'الاتصالات' },
-  '7020': { name: 'موبايلي',               sector: 'الاتصالات' },
-  '7030': { name: 'زين السعودية',           sector: 'الاتصالات' },
-  '2380': { name: 'بترو رابغ',             sector: 'البتروكيماويات' },
-  '2350': { name: 'سافكو',                 sector: 'البتروكيماويات' },
-  '1010': { name: 'الرياض',               sector: 'البنوك' },
-  '1030': { name: 'السعودي الفرنسي',        sector: 'البنوك' },
-  '1060': { name: 'الجزيرة',              sector: 'البنوك' },
-  '1080': { name: 'العربي',               sector: 'البنوك' },
-  '1140': { name: 'البلاد',               sector: 'البنوك' },
-  '4140': { name: 'المراعي',              sector: 'الأغذية' },
-  '2280': { name: 'الزامل الصناعية',       sector: 'الصناعة' },
-  '5110': { name: 'السعودية للكهرباء',     sector: 'المرافق' },
-  '4008': { name: 'العثيم',               sector: 'التجزئة' },
-  '4007': { name: 'الحكير',               sector: 'التجزئة' },
-  '8010': { name: 'مجموعة تداول',          sector: 'المالية' },
-  '8050': { name: 'التعاونية',            sector: 'التأمين' },
-  '4050': { name: 'سابتا',               sector: 'النقل' },
-  '2060': { name: 'الغاز والتصنيع',       sector: 'الطاقة' },
-  '2330': { name: 'المتقدمة للحفر',       sector: 'الطاقة' },
-  '1150': { name: 'أملاك',               sector: 'التمويل' },
-  '6010': { name: 'التصنيع',              sector: 'الصناعة' },
-  '3030': { name: 'المتقدمة',             sector: 'البتروكيماويات' },
-  '2090': { name: 'نماء للكيماويات',      sector: 'البتروكيماويات' },
+  '2222': { name: 'أرامكو السعودية',    sector: 'الطاقة' },
+  '1180': { name: 'الأهلي السعودي',      sector: 'البنوك' },
+  '1120': { name: 'الراجحي',            sector: 'البنوك' },
+  '2010': { name: 'سابك',               sector: 'البتروكيماويات' },
+  '7010': { name: 'الاتصالات السعودية',  sector: 'الاتصالات' },
+  '7020': { name: 'موبايلي',            sector: 'الاتصالات' },
+  '7030': { name: 'زين السعودية',        sector: 'الاتصالات' },
+  '2380': { name: 'بترو رابغ',          sector: 'البتروكيماويات' },
+  '2350': { name: 'سافكو',              sector: 'البتروكيماويات' },
+  '1010': { name: 'الرياض',            sector: 'البنوك' },
+  '1030': { name: 'السعودي الفرنسي',     sector: 'البنوك' },
+  '1060': { name: 'الجزيرة',           sector: 'البنوك' },
+  '1080': { name: 'العربي',            sector: 'البنوك' },
+  '1140': { name: 'البلاد',            sector: 'البنوك' },
+  '4140': { name: 'المراعي',           sector: 'الأغذية' },
+  '2280': { name: 'الزامل الصناعية',    sector: 'الصناعة' },
+  '5110': { name: 'السعودية للكهرباء',  sector: 'المرافق' },
+  '4008': { name: 'العثيم',            sector: 'التجزئة' },
+  '4007': { name: 'الحكير',            sector: 'التجزئة' },
+  '8010': { name: 'مجموعة تداول',       sector: 'المالية' },
+  '8050': { name: 'التعاونية',         sector: 'التأمين' },
+  '4050': { name: 'سابتا',            sector: 'النقل' },
+  '2060': { name: 'الغاز والتصنيع',    sector: 'الطاقة' },
+  '2330': { name: 'المتقدمة للحفر',    sector: 'الطاقة' },
+  '1150': { name: 'أملاك',            sector: 'التمويل' },
+  '6010': { name: 'التصنيع',           sector: 'الصناعة' },
+  '3030': { name: 'المتقدمة',          sector: 'البتروكيماويات' },
+  '2090': { name: 'نماء للكيماويات',   sector: 'البتروكيماويات' },
 }
 
 function searchStocks(query: string) {
@@ -65,7 +65,6 @@ export default function NewsInput() {
   const [suggestions, setSuggestions]     = useState<Array<{ ticker: string; name: string; sector: string }>>([])
   const [selectedStock, setSelectedStock] = useState<{ ticker: string; name: string; sector: string } | null>(null)
 
-  // استماع لحدث اختيار خبر من AutoFeed
   useEffect(() => {
     const handler = (e: CustomEvent<{ text: string }>) => {
       setText(e.detail.text)
@@ -168,17 +167,18 @@ export default function NewsInput() {
     }
   }
 
+  // ✅ إصلاح 1: CSS variables بدل الألوان المشفرة — يدعم الثيم الفاتح
   const inputStyle = {
-    width: '100%',
-    background: '#1C2128',
-    border: '1px solid #3D444D',
+    width:        '100%',
+    background:   'var(--bg3)',
+    border:       '1px solid var(--b2)',
     borderRadius: '8px',
-    color: '#E6EDF3',
-    fontFamily: 'Tajawal, Cairo, sans-serif',
-    fontSize: '0.85rem',
-    padding: '10px 12px',
-    outline: 'none',
-    boxSizing: 'border-box' as const,
+    color:        'var(--tx)',
+    fontFamily:   'Tajawal, Cairo, sans-serif',
+    fontSize:     '0.85rem',
+    padding:      '10px 12px',
+    outline:      'none',
+    boxSizing:    'border-box' as const,
   }
 
   const analyzeReady = activeTab === 'stock'
@@ -186,18 +186,21 @@ export default function NewsInput() {
     : text.trim().length >= 15
 
   return (
-    <div style={{ background: '#161B22', border: '1px solid #30363D', borderRadius: '12px', padding: '16px' }}>
+    // ✅ إصلاح 2: الحاوية الرئيسية بـ CSS variables
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--b1)', borderRadius: '12px', padding: '16px' }}>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', borderBottom: '1px solid #30363D', paddingBottom: '12px' }}>
+      {/* ✅ إصلاح 3: الحدود السفلية بـ CSS variable */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', borderBottom: '1px solid var(--b1)', paddingBottom: '12px' }}>
         {(['news', 'stock'] as const).map(tab => (
           <button key={tab}
             onClick={() => { setActiveTab(tab); setText(''); setStockQuery(''); setSuggestions([]); setSelectedStock(null) }}
             style={{
               padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-              border: activeTab === tab ? '1px solid rgba(0,229,255,0.3)' : '1px solid transparent',
-              background: activeTab === tab ? 'rgba(0,229,255,0.1)' : 'transparent',
-              color: activeTab === tab ? '#00E5FF' : '#8B949E',
+              border:     activeTab === tab ? '1px solid rgba(0,229,255,0.3)' : '1px solid transparent',
+              background: activeTab === tab ? 'rgba(0,229,255,0.1)'           : 'transparent',
+              // ✅ إصلاح 4: لون النص غير النشط بـ CSS variable
+              color:      activeTab === tab ? '#00E5FF' : 'var(--t2)',
             }}>
             {tab === 'news' ? '✏️ إدخال الخبر' : '🔍 بحث بالسهم'}
           </button>
@@ -227,27 +230,36 @@ export default function NewsInput() {
             autoComplete="off"
           />
 
-          {/* قائمة الاقتراحات */}
+          {/* ✅ إصلاح 5: قائمة الاقتراحات بـ CSS variables */}
           {suggestions.length > 0 && (
             <div style={{
               position: 'absolute', top: '100%', right: 0, left: 0,
-              background: '#1C2128', border: '1px solid #3D444D', borderRadius: '8px',
-              marginTop: '4px', zIndex: 50, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              background:   'var(--bg3)',
+              border:       '1px solid var(--b2)',
+              borderRadius: '8px',
+              marginTop:    '4px',
+              zIndex:       50,
+              overflow:     'hidden',
+              boxShadow:    '0 8px 24px rgba(0,0,0,0.25)',
             }}>
               {suggestions.map(stock => (
                 <button key={stock.ticker} onClick={() => handleSelectStock(stock)}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '10px 14px', background: 'transparent', border: 'none',
-                    borderBottom: '1px solid #2D333B', cursor: 'pointer', textAlign: 'right',
-                    color: '#E6EDF3', fontFamily: 'Tajawal, Cairo, sans-serif', transition: 'background 0.15s',
+                    borderBottom: '1px solid var(--b1)',
+                    cursor: 'pointer', textAlign: 'right',
+                    color:      'var(--tx)',
+                    fontFamily: 'Tajawal, Cairo, sans-serif',
+                    transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#2D333B')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg4)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{stock.name}</span>
-                    <span style={{ fontSize: '0.72rem', color: '#8B949E' }}>{stock.sector}</span>
+                    {/* ✅ إصلاح 6: لون القطاع بـ CSS variable */}
+                    <span style={{ fontSize: '0.72rem', color: 'var(--t2)' }}>{stock.sector}</span>
                   </div>
                   <span style={{
                     fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700, color: '#00E5FF',
@@ -265,7 +277,8 @@ export default function NewsInput() {
               background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)',
               borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              <span style={{ fontSize: '0.8rem', color: '#8B949E' }}>
+              {/* ✅ إصلاح 7: لون النص بـ CSS variable */}
+              <span style={{ fontSize: '0.8rem', color: 'var(--t2)' }}>
                 سيتم تحليل تأثير {selectedStock.name} على القطاعات المرتبطة
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -273,14 +286,14 @@ export default function NewsInput() {
                   {selectedStock.ticker}
                 </span>
                 <button onClick={() => { setSelectedStock(null); setStockQuery(''); setText(''); setSuggestions([]) }}
-                  style={{ background: 'none', border: 'none', color: '#8B949E', cursor: 'pointer', fontSize: '1rem', padding: '0 4px' }}>
+                  style={{ background: 'none', border: 'none', color: 'var(--t2)', cursor: 'pointer', fontSize: '1rem', padding: '0 4px' }}>
                   ✕
                 </button>
               </div>
             </div>
           )}
 
-          <p style={{ fontSize: '0.75rem', color: '#8B949E', margin: '8px 0 0 0' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--t2)', margin: '8px 0 0 0' }}>
             {isPro ? 'وصول كامل لجميع الأسهم' : 'الباقة المجانية: أرامكو (2222) فقط'}
           </p>
         </div>
@@ -302,9 +315,10 @@ export default function NewsInput() {
           style={{
             flex: 1, minWidth: '140px', padding: '10px 16px', borderRadius: '8px', border: 'none',
             fontWeight: 700, fontSize: '0.85rem',
-            cursor: isLoading || !analyzeReady ? 'not-allowed' : 'pointer',
+            cursor:     isLoading || !analyzeReady ? 'not-allowed' : 'pointer',
             background: isLoading || !analyzeReady ? 'rgba(0,229,255,0.2)' : '#00E5FF',
-            color: isLoading || !analyzeReady ? 'rgba(0,229,255,0.5)' : '#0D1117',
+            // ✅ إصلاح 8: لون نص الزر بـ CSS variable بدل #0D1117 المشفر
+            color:      isLoading || !analyzeReady ? 'rgba(0,229,255,0.5)' : 'var(--bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s',
           }}>
           {isLoading ? (
@@ -323,10 +337,11 @@ export default function NewsInput() {
       {/* Progress */}
       {isLoading && progress > 0 && (
         <div style={{ marginTop: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#8B949E', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--t2)', marginBottom: '4px' }}>
             <span>{progressLabel}</span><span>{progress}%</span>
           </div>
-          <div style={{ height: '4px', background: '#1C2128', borderRadius: '2px', overflow: 'hidden' }}>
+          {/* ✅ إصلاح 9: خلفية شريط التقدم بـ CSS variable */}
+          <div style={{ height: '4px', background: 'var(--bg3)', borderRadius: '2px', overflow: 'hidden' }}>
             <div style={{ height: '100%', background: '#00E5FF', borderRadius: '2px', width: `${progress}%`, transition: 'width 0.5s ease' }} />
           </div>
         </div>
@@ -334,7 +349,7 @@ export default function NewsInput() {
 
       {/* Free plan notice */}
       {!isPro && (
-        <p style={{ marginTop: '10px', fontSize: '0.72rem', color: '#8B949E', textAlign: 'center' }}>
+        <p style={{ marginTop: '10px', fontSize: '0.72rem', color: 'var(--t2)', textAlign: 'center' }}>
           الباقة المجانية: أخبار أرامكو فقط •{' '}
           <a href="/subscribe" style={{ color: '#00E5FF' }}>اشترك للوصول الكامل ←</a>
         </p>
