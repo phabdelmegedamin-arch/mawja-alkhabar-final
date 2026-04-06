@@ -19,11 +19,15 @@ export const metadata: Metadata = {
   },
 }
 
+// ✅ إصلاح 1: دعم الثيمين داكن وفاتح
 export const viewport: Viewport = {
   width:        'device-width',
   initialScale: 1,
-  themeColor:   '#0D1117',
-  colorScheme:  'dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)',  color: '#0D1117' },
+    { media: '(prefers-color-scheme: light)', color: '#F6F8FA' },
+  ],
+  colorScheme: 'dark light',
 }
 
 export default function RootLayout({
@@ -36,9 +40,10 @@ export default function RootLayout({
       <body
         className="antialiased"
         style={{
-          background: '#0D1117',
-          color: '#E6EDF3',
-          minHeight: '100dvh',
+          // ✅ إصلاح 2: CSS variables بدل الألوان المشفرة
+          background: 'var(--bg)',
+          color:      'var(--tx)',
+          minHeight:  '100dvh',
           fontFamily: "'Tajawal', 'Cairo', sans-serif",
         }}
       >
