@@ -1,9 +1,4 @@
-📁 المسار: src/components/news/NewsList.tsx
-الخطأ المصلح:
-
-sessionStorage.setItem('mw_news_text', item.text) — كان يحفظ الخبر في sessionStorage لكن لا أحد يقرأه في الصفحة الرئيسية، فالخبر يضيع → استبدل بـ CustomEvent مباشر وهو نفس الآلية التي يستمع لها NewsInput
-
-tsx'use client'
+'use client'
 import { useEffect, useState } from 'react'
 import { cn, timeAgo } from '@/lib/utils'
 import { analyzeSentiment, detectSectors } from '@/lib/nlp'
