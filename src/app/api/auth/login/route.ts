@@ -36,7 +36,23 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── Subscriber check — استخدام anon client للـ signIn ──
+    const { createAdminClient } = await import('@/lib/supabase')
+    const supabaseAdmin = createAdminClient()
+
+    // ── إذا username وليس إيميل، ابحث عن الإيميل الحقيقي من auth.users ──
+    let email = username
+    if (!username.includes('@')) {
+      const { data: users } = await supabaseAdmin.auth.admin.listUsers()
+      const found = users?.users?.find(
+        u => u.user_metadata?.username?.toLowerCase() === username.toLowerCase()
+      )
+      if (!found) {
+        return NextResponse.json({ success: false, error: 'اسم المستخدم غير موجود' }, { status: 401 })
+      }
+      email = found.email!
+    }
+
+    // ── تسجيل الدخول بالإيميل الحقيقي ──
     const { createClient } = require('@supabase/supabase-js')
     const supabaseAuth = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,21 +60,16 @@ export async function POST(req: NextRequest) {
       { auth: { persistSession: false } }
     )
 
-    const email = username.includes('@') ? username : `${username}@mawjakhabar.com`
-
     const { data: authData, error: authError } = await supabaseAuth.auth.signInWithPassword({
       email,
       password,
     })
 
     if (authError || !authData?.user) {
-      return NextResponse.json({ success: false, error: 'بيانات الدخول غير صحيحة' }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'كلمة المرور غير صحيحة' }, { status: 401 })
     }
 
-    // ── Get profile — استخدام admin client لقراءة الـ profile ──
-    const { createAdminClient } = await import('@/lib/supabase')
-    const supabaseAdmin = createAdminClient()
-
+    // ── Get profile ──
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('username, name, plan, status, expires_at')
