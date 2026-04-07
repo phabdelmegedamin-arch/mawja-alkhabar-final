@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const uh = await sha256(username)
     const ph = await sha256(password)
 
-    // Admin check (hardcoded hashes)
+    // ── Admin check ──────────────────────────────
     const isAdmin = (uh === ADMIN_HASHES.AU || uh === ADMIN_HASHES.AE)
                  && (ph === ADMIN_HASHES.AP  || ph === ADMIN_HASHES.AP2)
 
@@ -36,21 +36,30 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Supabase check
-    const { createAdminClient } = await import('@/lib/supabase')
-    const supabase = createAdminClient()
+    // ── Subscriber check — استخدام anon client للـ signIn ──
+    const { createClient } = require('@supabase/supabase-js')
+    const supabaseAuth = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { persistSession: false } }
+    )
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email:    username.includes('@') ? username : `${username}@mawjakhabar.com`,
+    const email = username.includes('@') ? username : `${username}@mawjakhabar.com`
+
+    const { data: authData, error: authError } = await supabaseAuth.auth.signInWithPassword({
+      email,
       password,
     })
 
-    if (authError || !authData.user) {
+    if (authError || !authData?.user) {
       return NextResponse.json({ success: false, error: 'بيانات الدخول غير صحيحة' }, { status: 401 })
     }
 
-    // Get profile
-    const { data: profile } = await supabase
+    // ── Get profile — استخدام admin client لقراءة الـ profile ──
+    const { createAdminClient } = await import('@/lib/supabase')
+    const supabaseAdmin = createAdminClient()
+
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('username, name, plan, status, expires_at')
       .eq('id', authData.user.id)
@@ -60,8 +69,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'انتهت صلاحية اشتراكك' }, { status: 403 })
     }
 
-    // Update last login
-    await supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', authData.user.id)
+    if (profile?.status === 'pending') {
+      return NextResponse.json({ success: false, error: 'حسابك قيد المراجعة، يرجى الانتظار' }, { status: 403 })
+    }
+
+    // ── Update last login ──
+    await supabaseAdmin
+      .from('profiles')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', authData.user.id)
 
     return NextResponse.json({
       success: true,
@@ -73,6 +89,7 @@ export async function POST(req: NextRequest) {
         expiresAt: profile?.expires_at,
       },
     })
+
   } catch (err) {
     console.error('[/api/auth/login]', err)
     return NextResponse.json({ success: false, error: 'خطأ في الخادم' }, { status: 500 })
