@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     if (!username.includes('@')) {
       const { data: users } = await supabaseAdmin.auth.admin.listUsers()
       const found = users?.users?.find(
-        u => u.user_metadata?.username?.toLowerCase() === username.toLowerCase()
-      )
+  (u: any) => u.user_metadata?.username?.toLowerCase() === username.toLowerCase()
+)
       if (!found) {
         return NextResponse.json({ success: false, error: 'اسم المستخدم غير موجود' }, { status: 401 })
       }
