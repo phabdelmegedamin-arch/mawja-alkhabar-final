@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// GET /api/subscribers — admin only
 export async function GET(req: NextRequest) {
   try {
     const { createAdminClient } = await import('@/lib/supabase')
     const supabase = createAdminClient()
-
     const { searchParams } = new URL(req.url)
     const q       = searchParams.get('q') ?? ''
     const status  = searchParams.get('status') ?? 'all'
@@ -18,17 +16,17 @@ export async function GET(req: NextRequest) {
       .select(`
         id, username, name, phone, plan, status,
         created_at, updated_at, last_login_at, expires_at,
-        subscriptions(plan, period, amount, total, status, created_at, expires_at)
+        subscriptions(plan, period, amount, total, status, created_at, expires_at, promo_code)
       `, { count: 'exact' })
+      .not('username', 'is', null)
       .order('created_at', { ascending: false })
       .range((page - 1) * perPage, page * perPage - 1)
 
-    if (q)           query = query.or(`username.ilike.%${q}%,name.ilike.%${q}%`)
+    if (q)                query = query.or(`username.ilike.%${q}%,name.ilike.%${q}%`)
     if (status !== 'all') query = query.eq('status', status)
-    if (plan !== 'all')   query = query.eq('plan', plan)
+    if (plan   !== 'all') query = query.eq('plan', plan)
 
     const { data, error, count } = await query
-
     if (error) throw error
 
     return NextResponse.json({
@@ -41,7 +39,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/subscribers — activate/deactivate subscriber
 export async function POST(req: NextRequest) {
   try {
     const { userId, action, plan, expiresAt } = await req.json()
@@ -52,12 +49,17 @@ export async function POST(req: NextRequest) {
       await supabase.from('profiles').update({
         plan:       plan ?? 'pro',
         status:     'active',
-        expires_at: expiresAt,
+        expires_at: expiresAt ?? null,
       }).eq('id', userId)
+
+      await supabase.from('subscriptions').update({
+        status: 'active',
+      }).eq('user_id', userId)
+
     } else if (action === 'deactivate') {
-      await supabase.from('profiles').update({
-        status: 'cancelled',
-      }).eq('id', userId)
+      await supabase.from('profiles').update({ status: 'cancelled' }).eq('id', userId)
+      await supabase.from('subscriptions').update({ status: 'cancelled' }).eq('user_id', userId)
+
     } else if (action === 'delete') {
       await supabase.auth.admin.deleteUser(userId)
     }
