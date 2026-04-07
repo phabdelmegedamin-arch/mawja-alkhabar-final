@@ -76,13 +76,37 @@ export async function POST(req: NextRequest) {
     if (validatedCode) {
       await supabase
         .from('subscription_codes')
-        .update({
-          active:       false,
-          used_by:      userId,
-          last_used_at: new Date().toISOString(),
-        })
+        .update({ active: false, used_by: userId, last_used_at: new Date().toISOString() })
         .eq('code', promoCode.toUpperCase())
     }
+
+    // === إرسال إيميل تأكيد ===
+    const emailBody = validatedCode
+      ? `مرحباً ${name}،\n\nتم تفعيل اشتراكك في موجة الخبر مجاناً بنجاح! 🎉\n\nيمكنك الدخول الآن بـ:\nالبريد: ${email}\n\nمع تحيات فريق موجة الخبر`
+      : `مرحباً ${name}،\n\nشكراً لاشتراكك في موجة الخبر! ✅\n\nتم استلام طلبك وسيتم تفعيل حسابك بعد مراجعة الدفع خلال دقائق.\n\nبيانات حسابك:\nالبريد: ${email}\nاسم المستخدم: ${username}\nالباقة: ${plan === 'monthly' ? 'شهرية' : 'سنوية'}\n\nمع تحيات فريق موجة الخبر`
+
+    try {
+      await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+      })
+    } catch {}
+
+    // إرسال إيميل مخصص عبر Supabase
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: validatedCode ? '🎉 تم تفعيل اشتراكك في موجة الخبر مجاناً' : '✅ تم استلام طلب اشتراكك في موجة الخبر',
+          text: emailBody,
+        }),
+      })
+    } catch {}
 
     return NextResponse.json({
       success: true,
@@ -90,8 +114,8 @@ export async function POST(req: NextRequest) {
         userId,
         isFree: !!validatedCode,
         message: validatedCode
-          ? 'تم تفعيل حسابك مجاناً بالكود!'
-          : 'تم إنشاء الحساب — انتظر تأكيد الدفع',
+          ? 'تم تفعيل حسابك مجاناً! تحقق من بريدك الإلكتروني.'
+          : 'تم إنشاء الحساب — تحقق من بريدك الإلكتروني.',
       },
     })
   } catch (err) {
