@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, username, email, phone, password, plan, amount } = await req.json()
+    const { name, username, email, phone, password, plan, amount, promoCode, isFree } = await req.json()
 
     if (!username || !email || !password || !plan) {
       return NextResponse.json({ success: false, error: 'بيانات ناقصة' }, { status: 400 })
@@ -22,41 +22,82 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'اسم المستخدم محجوز' }, { status: 409 })
     }
 
+    // === التحقق من الكود المجاني إذا أُرسل ===
+    let validatedCode = null
+    if (promoCode && isFree) {
+      const { data: codeData } = await supabase
+        .from('subscription_codes')
+        .select('*')
+        .eq('code', promoCode.toUpperCase())
+        .eq('active', true)
+        .single()
+
+      if (!codeData) {
+        return NextResponse.json({ success: false, error: 'الكود غير صالح أو مستخدم مسبقاً' }, { status: 400 })
+      }
+      if (codeData.expiry && new Date(codeData.expiry) < new Date()) {
+        return NextResponse.json({ success: false, error: 'انتهت صلاحية الكود' }, { status: 400 })
+      }
+      validatedCode = codeData
+    }
+
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email, password,
       user_metadata: { username, name, phone },
-      email_confirm: true, // auto-confirm for now
+      email_confirm: true,
     })
 
     if (authError || !authData.user) {
       return NextResponse.json({ success: false, error: authError?.message ?? 'فشل إنشاء الحساب' }, { status: 400 })
     }
 
+    const userId = authData.user.id
+
     // Update profile
     await supabase.from('profiles').update({
       name, phone,
-      plan:   'pending',
-      status: 'pending',
-    }).eq('id', authData.user.id)
+      plan:   validatedCode ? validatedCode.plan : 'pending',
+      status: validatedCode ? 'active' : 'pending',
+    }).eq('id', userId)
 
     // Create subscription record
-    const vat   = amount ? +(amount * 0.15).toFixed(2) : 0
-    const total = amount ? +(amount * 1.15).toFixed(2) : 0
+    const finalAmount = validatedCode ? 0 : (amount ?? 0)
+    const vat         = validatedCode ? 0 : +(finalAmount * 0.15).toFixed(2)
+    const total       = validatedCode ? 0 : +(finalAmount * 1.15).toFixed(2)
 
     await supabase.from('subscriptions').insert({
-      user_id: authData.user.id,
+      user_id: userId,
       plan:    'pro',
       period:  plan,
-      amount,
+      amount:  finalAmount,
       vat,
       total,
-      status:  'pending',
+      status:  validatedCode ? 'active' : 'pending',
+      promo_code: validatedCode ? promoCode.toUpperCase() : null,
     })
+
+    // === تعطيل الكود بعد الاستخدام ===
+    if (validatedCode) {
+      await supabase
+        .from('subscription_codes')
+        .update({
+          active:       false,
+          used_by:      userId,
+          last_used_at: new Date().toISOString(),
+        })
+        .eq('code', promoCode.toUpperCase())
+    }
 
     return NextResponse.json({
       success: true,
-      data:    { userId: authData.user.id, message: 'تم إنشاء الحساب — انتظر تأكيد الدفع' },
+      data: {
+        userId,
+        isFree: !!validatedCode,
+        message: validatedCode
+          ? 'تم تفعيل حسابك مجاناً بالكود!'
+          : 'تم إنشاء الحساب — انتظر تأكيد الدفع',
+      },
     })
   } catch (err) {
     console.error('[/api/auth/register]', err)
