@@ -52,8 +52,11 @@ export async function POST(req: NextRequest) {
 
     const userId = authData.user.id
 
+    // ✅ الإصلاح: إضافة username في الـ update
     await supabase.from('profiles').update({
-      name, phone,
+      username,
+      name,
+      phone,
       plan:   validatedCode ? validatedCode.plan : 'pending',
       status: validatedCode ? 'active' : 'pending',
     }).eq('id', userId)
@@ -80,19 +83,14 @@ export async function POST(req: NextRequest) {
         .eq('code', promoCode.toUpperCase())
     }
 
-    // === إرسال إيميل تأكيد ===
     const emailBody = validatedCode
       ? `مرحباً ${name}،\n\nتم تفعيل اشتراكك في موجة الخبر مجاناً بنجاح! 🎉\n\nيمكنك الدخول الآن بـ:\nالبريد: ${email}\n\nمع تحيات فريق موجة الخبر`
       : `مرحباً ${name}،\n\nشكراً لاشتراكك في موجة الخبر! ✅\n\nتم استلام طلبك وسيتم تفعيل حسابك بعد مراجعة الدفع خلال دقائق.\n\nبيانات حسابك:\nالبريد: ${email}\nاسم المستخدم: ${username}\nالباقة: ${plan === 'monthly' ? 'شهرية' : 'سنوية'}\n\nمع تحيات فريق موجة الخبر`
 
     try {
-      await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-      })
+      await supabase.auth.admin.generateLink({ type: 'magiclink', email })
     } catch {}
 
-    // إرسال إيميل مخصص عبر Supabase
     try {
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
