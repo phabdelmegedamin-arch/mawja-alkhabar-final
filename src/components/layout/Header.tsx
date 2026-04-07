@@ -37,24 +37,34 @@ export default function Header() {
           <em className="text-ac not-italic">الخبر</em>
         </div>
       </div>
+
       <div className="flex items-center gap-2">
         <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gr" style={{ border: '1px solid rgba(0,212,122,0.3)', background: 'rgba(0,212,122,0.05)' }}>
           <span className="live-dot" />
           LIVE
         </div>
+
         {isPro ? (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-ac text-xs font-bold" style={{ background: 'var(--ac2)', border: '1px solid rgba(0,229,255,0.2)' }}>
             <span>⭐ Pro — {session?.name}</span>
             <button onClick={logout} style={{ background: 'none', border: 'none', color: 'var(--rd)', opacity: 0.7, cursor: 'pointer' }}>✕</button>
           </div>
         ) : (
-          <a href="/subscribe" className="px-3 py-1.5 rounded-lg text-ac text-xs font-bold" style={{ border: '1px solid var(--ac)' }}>
-            اشترك ⭐
-          </a>
+          // ✅ الإصلاح: إضافة زر دخول بجانب زر الاشتراك
+          <div className="flex items-center gap-1">
+            <a href="/login" className="px-3 py-1.5 rounded-lg text-tx-2 text-xs font-bold" style={{ border: '1px solid var(--b2)' }}>
+              دخول
+            </a>
+            <a href="/subscribe" className="px-3 py-1.5 rounded-lg text-ac text-xs font-bold" style={{ border: '1px solid var(--ac)' }}>
+              اشترك ⭐
+            </a>
+          </div>
         )}
+
         <button onClick={toggleTheme} className="w-8 h-8 rounded-lg text-tx-3 flex items-center justify-center text-sm" style={{ border: '1px solid var(--b2)', background: 'transparent' }} title={theme === 'dark' ? 'وضع فاتح' : 'وضع داكن'}>
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
+
         <a href="/admin" className="w-8 h-8 rounded-lg text-tx-3 flex items-center justify-center text-sm" style={{ border: '1px solid var(--b2)' }} title="لوحة الأدمن">
           🛡️
         </a>
