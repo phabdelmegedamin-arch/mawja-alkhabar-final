@@ -4,7 +4,7 @@ import { useState } from 'react'
 type Step = 1 | 2 | 3 | 4
 type Plan = 'monthly' | 'yearly' | null
 
-const PRICES = { monthly: 49, yearly: 399, vat: 0.15 }
+const PRICES = { monthly: 49, yearly: 499, vat: 0.15 }
 
 export default function SubscribePage() {
   const [step, setStep]       = useState<Step>(1)
@@ -14,8 +14,6 @@ export default function SubscribePage() {
   const [form, setForm]       = useState({
     name:'', email:'', username:'', phone:'', password:'', password2:''
   })
-
-  // === كود مجاني ===
   const [promoCode, setPromoCode]       = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
   const [promoLoading, setPromoLoading] = useState(false)
@@ -43,11 +41,9 @@ export default function SubscribePage() {
 
   const handleStep2 = () => {
     if (!plan) { setErr('اختر باقة'); return }
-    setErr('')
-    setStep(3)
+    setErr(''); setStep(3)
   }
 
-  // === تطبيق كود مجاني ===
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) { setPromoErr('أدخل الكود أولاً'); return }
     setPromoLoading(true); setPromoErr(''); setPromoSuccess('')
@@ -76,17 +72,17 @@ export default function SubscribePage() {
   const handlePay = async () => {
     setLoad(true); setErr('')
     try {
-      const price = promoApplied ? 0 : (plan ? PRICES[plan] : 0)
-      const res   = await fetch('/api/auth/register', {
+      const basePrice = plan ? PRICES[plan] : 0
+      const res = await fetch('/api/auth/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body:   JSON.stringify({
+        body: JSON.stringify({
           ...form, plan,
-          amount: price,
+          amount:    promoApplied ? 0 : basePrice,
           promoCode: promoApplied ? promoCode.trim() : null,
-          isFree: promoApplied,
+          isFree:    promoApplied,
         }),
       })
-      const data  = await res.json()
+      const data = await res.json()
       if (!data.success) throw new Error(data.error)
       setStep(4)
     } catch (e: any) { setErr(e.message) }
@@ -96,13 +92,12 @@ export default function SubscribePage() {
   const basePrice = plan ? PRICES[plan] : 0
   const price     = promoApplied ? 0 : basePrice
   const vat       = promoApplied ? 0 : +(basePrice * 0.15).toFixed(2)
-  const total     = promoApplied ? 0 : +(basePrice + basePrice * 0.15).toFixed(2)
+  const total     = promoApplied ? 0 : +(basePrice * 1.15).toFixed(2)
 
   const STEP_LABELS = ['إنشاء حساب','اختر الباقة','الدفع','تم! ✓']
 
   return (
     <div className="min-h-screen bg-bg flex flex-col">
-      {/* Header */}
       <div className="sticky top-0 bg-bg2 border-b border-b-1 px-4 h-14 flex items-center justify-between">
         <a href="/" className="flex items-center gap-2">
           <span className="text-ac font-black text-lg">〜</span>
@@ -135,19 +130,19 @@ export default function SubscribePage() {
           })}
         </div>
 
-        {/* Step 1: Account */}
+        {/* Step 1 */}
         {step === 1 && (
           <div className="card p-6 space-y-4">
             <h2 className="text-xl font-black">إنشاء <span className="text-ac">حسابك</span></h2>
             <p className="text-xs text-tx-3">خطوة واحدة للوصول لأقوى أداة تحليل للأسواق السعودية</p>
             <div className="grid sm:grid-cols-2 gap-4">
               {[
-                { label:'الاسم الكامل *',           key:'name',      type:'text',     ph:'محمد عبدالله',   dir:'rtl' },
-                { label:'البريد الإلكتروني *',       key:'email',     type:'email',    ph:'you@example.com',dir:'ltr' },
-                { label:'اسم المستخدم *',            key:'username',  type:'text',     ph:'mohammed123',    dir:'ltr' },
-                { label:'رقم الجوال (واتساب) *',    key:'phone',     type:'tel',      ph:'966501234567',   dir:'ltr' },
-                { label:'كلمة المرور *',             key:'password',  type:'password', ph:'••••••••',       dir:'ltr' },
-                { label:'تأكيد كلمة المرور *',      key:'password2', type:'password', ph:'••••••••',       dir:'ltr' },
+                { label:'الاسم الكامل *',        key:'name',      type:'text',     ph:'محمد عبدالله',   dir:'rtl' },
+                { label:'البريد الإلكتروني *',    key:'email',     type:'email',    ph:'you@example.com',dir:'ltr' },
+                { label:'اسم المستخدم *',         key:'username',  type:'text',     ph:'mohammed123',    dir:'ltr' },
+                { label:'رقم الجوال (واتساب) *', key:'phone',     type:'tel',      ph:'966501234567',   dir:'ltr' },
+                { label:'كلمة المرور *',          key:'password',  type:'password', ph:'••••••••',       dir:'ltr' },
+                { label:'تأكيد كلمة المرور *',   key:'password2', type:'password', ph:'••••••••',       dir:'ltr' },
               ].map(f => (
                 <div key={f.key}>
                   <label className="text-xs text-tx-3 block mb-1">{f.label}</label>
@@ -166,12 +161,11 @@ export default function SubscribePage() {
           </div>
         )}
 
-        {/* Step 2: Plan */}
+        {/* Step 2 */}
         {step === 2 && (
           <div className="card p-6 space-y-4">
             <h2 className="text-xl font-black">اختر <span className="text-ac">باقتك</span></h2>
             <div className="grid sm:grid-cols-2 gap-4">
-              {/* Monthly */}
               <div onClick={() => setPlan('monthly')}
                 className={`card p-5 cursor-pointer transition-all ${plan === 'monthly' ? 'border-ac bg-ac/5' : 'hover:border-b-3'}`}>
                 <div className="text-base font-bold mb-1">شهري</div>
@@ -181,12 +175,9 @@ export default function SubscribePage() {
                   {['✅ كامل 153 سهم','✅ أخبار لحظية','✅ تحليل فوري'].map(f => <li key={f}>{f}</li>)}
                 </ul>
               </div>
-              {/* Yearly */}
               <div onClick={() => setPlan('yearly')}
                 className={`card p-5 cursor-pointer transition-all relative ${plan === 'yearly' ? 'border-ac bg-ac/5' : 'hover:border-b-3'}`}>
-                <div className="absolute -top-3 right-4 bg-ac text-bg text-2xs font-black px-2 py-0.5 rounded-full">
-                  الأوفر 🔥
-                </div>
+                <div className="absolute -top-3 right-4 bg-ac text-bg text-2xs font-black px-2 py-0.5 rounded-full">الأوفر 🔥</div>
                 <div className="text-base font-bold mb-1">سنوي</div>
                 <div className="text-3xl font-black text-ac mb-0.5">399 <span className="text-base font-normal text-tx-3">ر.س</span></div>
                 <div className="text-2xs text-tx-3 mb-3">+ 15% ضريبة — وفّر 32%</div>
@@ -203,24 +194,31 @@ export default function SubscribePage() {
           </div>
         )}
 
-        {/* Step 3: Payment */}
+        {/* Step 3 */}
         {step === 3 && (
           <div className="card p-6 space-y-4">
             <h2 className="text-xl font-black">تأكيد <span className="text-ac">الدفع</span></h2>
 
-            {/* ملخص الطلب */}
+            {/* ملخص */}
             <div className="bg-bg3 rounded-lg p-4 space-y-2.5">
               <div className="text-xs font-bold text-ac mb-2">📋 ملخص الطلب</div>
-              {[
-                ['المستخدم', form.username],
-                ['الباقة',   `موجة الخبر — ${plan === 'monthly' ? 'شهري' : 'سنوي'}`],
-                ['السعر',    promoApplied ? <span className="line-through text-tx-3">{basePrice} ر.س</span> : `${basePrice} ر.س`],
-                ['الضريبة (15%)', promoApplied ? '—' : `${vat} ر.س`],
-              ].map(([k,v]) => (
-                <div key={k as string} className="flex justify-between text-sm">
-                  <span className="text-tx-3">{k}</span><span>{v}</span>
-                </div>
-              ))}
+              <div className="flex justify-between text-sm">
+                <span className="text-tx-3">المستخدم</span><span>{form.username}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-tx-3">الباقة</span>
+                <span>موجة الخبر — {plan === 'monthly' ? 'شهري' : 'سنوي'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-tx-3">السعر</span>
+                {promoApplied
+                  ? <span className="line-through text-tx-3">{basePrice} ر.س</span>
+                  : <span>{basePrice} ر.س</span>}
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-tx-3">الضريبة (15%)</span>
+                <span>{promoApplied ? '—' : `${vat} ر.س`}</span>
+              </div>
               <div className="h-px bg-b-1 my-1" />
               <div className="flex justify-between font-black text-base">
                 <span>الإجمالي</span>
@@ -230,7 +228,7 @@ export default function SubscribePage() {
               </div>
             </div>
 
-            {/* === حقل كود مجاني === */}
+            {/* حقل الكود */}
             <div className="border border-b-2 rounded-lg p-4 space-y-2">
               <label className="text-xs font-bold text-tx-2 block">🎟️ هل لديك كود مجاني؟</label>
               {!promoApplied ? (
@@ -261,12 +259,10 @@ export default function SubscribePage() {
               {promoSuccess && <p className="text-green-400 text-xs">{promoSuccess}</p>}
             </div>
 
-            {!promoApplied && (
-              <p className="text-xs text-tx-3 text-center">سيتم تحويلك لبوابة ميسر الآمنة — بعد الدفع يُفعَّل حسابك خلال دقائق</p>
-            )}
-            {promoApplied && (
-              <p className="text-xs text-green-400 text-center">✨ اشتراكك مجاني بالكامل — سيُفعَّل حسابك فور الضغط على الزر</p>
-            )}
+            {promoApplied
+              ? <p className="text-xs text-green-400 text-center">✨ اشتراكك مجاني بالكامل — سيُفعَّل حسابك فور الضغط على الزر</p>
+              : <p className="text-xs text-tx-3 text-center">سيتم تحويلك لبوابة ميسر الآمنة — بعد الدفع يُفعَّل حسابك خلال دقائق</p>
+            }
 
             {err && <p className="text-rd text-xs text-center">{err}</p>}
             <div className="flex gap-3">
@@ -279,7 +275,7 @@ export default function SubscribePage() {
           </div>
         )}
 
-        {/* Step 4: Done */}
+        {/* Step 4 */}
         {step === 4 && (
           <div className="card p-12 text-center">
             <div className="text-6xl mb-4">✅</div>
