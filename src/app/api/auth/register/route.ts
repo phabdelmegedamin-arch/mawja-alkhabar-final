@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
     const { createAdminClient } = await import('@/lib/supabase')
     const supabase = createAdminClient()
 
-    // Check username not taken
     const { data: existing } = await supabase
       .from('profiles')
       .select('username')
@@ -22,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'اسم المستخدم محجوز' }, { status: 409 })
     }
 
-    // === التحقق من الكود المجاني إذا أُرسل ===
+    // التحقق من الكود المجاني
     let validatedCode = null
     if (promoCode && isFree) {
       const { data: codeData } = await supabase
@@ -41,7 +40,6 @@ export async function POST(req: NextRequest) {
       validatedCode = codeData
     }
 
-    // Create auth user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email, password,
       user_metadata: { username, name, phone },
@@ -54,30 +52,27 @@ export async function POST(req: NextRequest) {
 
     const userId = authData.user.id
 
-    // Update profile
     await supabase.from('profiles').update({
       name, phone,
       plan:   validatedCode ? validatedCode.plan : 'pending',
       status: validatedCode ? 'active' : 'pending',
     }).eq('id', userId)
 
-    // Create subscription record
     const finalAmount = validatedCode ? 0 : (amount ?? 0)
     const vat         = validatedCode ? 0 : +(finalAmount * 0.15).toFixed(2)
     const total       = validatedCode ? 0 : +(finalAmount * 1.15).toFixed(2)
 
     await supabase.from('subscriptions').insert({
-      user_id: userId,
-      plan:    'pro',
-      period:  plan,
-      amount:  finalAmount,
+      user_id:    userId,
+      plan:       'pro',
+      period:     plan,
+      amount:     finalAmount,
       vat,
       total,
-      status:  validatedCode ? 'active' : 'pending',
+      status:     validatedCode ? 'active' : 'pending',
       promo_code: validatedCode ? promoCode.toUpperCase() : null,
     })
 
-    // === تعطيل الكود بعد الاستخدام ===
     if (validatedCode) {
       await supabase
         .from('subscription_codes')
