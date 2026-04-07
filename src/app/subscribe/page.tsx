@@ -7,13 +7,20 @@ type Plan = 'monthly' | 'yearly' | null
 const PRICES = { monthly: 49, yearly: 399, vat: 0.15 }
 
 export default function SubscribePage() {
-  const [step, setStep]     = useState<Step>(1)
-  const [plan, setPlan]     = useState<Plan>(null)
-  const [loading, setLoad]  = useState(false)
-  const [err, setErr]       = useState('')
-  const [form, setForm]     = useState({
+  const [step, setStep]       = useState<Step>(1)
+  const [plan, setPlan]       = useState<Plan>(null)
+  const [loading, setLoad]    = useState(false)
+  const [err, setErr]         = useState('')
+  const [form, setForm]       = useState({
     name:'', email:'', username:'', phone:'', password:'', password2:''
   })
+
+  // === كود مجاني ===
+  const [promoCode, setPromoCode]       = useState('')
+  const [promoApplied, setPromoApplied] = useState(false)
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoErr, setPromoErr]         = useState('')
+  const [promoSuccess, setPromoSuccess] = useState('')
 
   const setF = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(prev => ({ ...prev, [k]: e.target.value }))
@@ -37,18 +44,47 @@ export default function SubscribePage() {
   const handleStep2 = () => {
     if (!plan) { setErr('اختر باقة'); return }
     setErr('')
-    const price = PRICES[plan]
-    const vat   = +(price * PRICES.vat).toFixed(2)
     setStep(3)
+  }
+
+  // === تطبيق كود مجاني ===
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) { setPromoErr('أدخل الكود أولاً'); return }
+    setPromoLoading(true); setPromoErr(''); setPromoSuccess('')
+    try {
+      const res  = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim() }),
+      })
+      const data = await res.json()
+      if (!data.valid) throw new Error(data.error || 'الكود غير صحيح أو منتهي الصلاحية')
+      setPromoApplied(true)
+      setPromoSuccess('✅ تم تطبيق الكود! الاشتراك مجاني')
+    } catch (e: any) {
+      setPromoErr(e.message)
+      setPromoApplied(false)
+    }
+    setPromoLoading(false)
+  }
+
+  const removePromo = () => {
+    setPromoCode(''); setPromoApplied(false)
+    setPromoErr(''); setPromoSuccess('')
   }
 
   const handlePay = async () => {
     setLoad(true); setErr('')
     try {
-      const price = plan ? PRICES[plan] : 0
+      const price = promoApplied ? 0 : (plan ? PRICES[plan] : 0)
       const res   = await fetch('/api/auth/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body:   JSON.stringify({ ...form, plan, amount: price }),
+        body:   JSON.stringify({
+          ...form, plan,
+          amount: price,
+          promoCode: promoApplied ? promoCode.trim() : null,
+          isFree: promoApplied,
+        }),
       })
       const data  = await res.json()
       if (!data.success) throw new Error(data.error)
@@ -57,9 +93,10 @@ export default function SubscribePage() {
     setLoad(false)
   }
 
-  const price = plan ? PRICES[plan]    : 0
-  const vat   = plan ? +(price * 0.15).toFixed(2) : 0
-  const total = plan ? +(price + vat).toFixed(2)  : 0
+  const basePrice = plan ? PRICES[plan] : 0
+  const price     = promoApplied ? 0 : basePrice
+  const vat       = promoApplied ? 0 : +(basePrice * 0.15).toFixed(2)
+  const total     = promoApplied ? 0 : +(basePrice + basePrice * 0.15).toFixed(2)
 
   const STEP_LABELS = ['إنشاء حساب','اختر الباقة','الدفع','تم! ✓']
 
@@ -78,8 +115,8 @@ export default function SubscribePage() {
         {/* Steps bar */}
         <div className="flex items-center mb-8">
           {STEP_LABELS.map((label, i) => {
-            const n     = i + 1
-            const done  = step > n
+            const n      = i + 1
+            const done   = step > n
             const active = step === n
             return (
               <div key={i} className="flex items-center flex-1 last:flex-none">
@@ -105,14 +142,14 @@ export default function SubscribePage() {
             <p className="text-xs text-tx-3">خطوة واحدة للوصول لأقوى أداة تحليل للأسواق السعودية</p>
             <div className="grid sm:grid-cols-2 gap-4">
               {[
-                { label:'الاسم الكامل *',           key:'name',      type:'text',     ph:'محمد عبدالله',          dir:'rtl' },
-                { label:'البريد الإلكتروني *',       key:'email',     type:'email',    ph:'you@example.com',       dir:'ltr' },
-                { label:'اسم المستخدم *',            key:'username',  type:'text',     ph:'mohammed123',           dir:'ltr' },
-                { label:'رقم الجوال (واتساب) *',    key:'phone',     type:'tel',      ph:'966501234567',          dir:'ltr' },
-                { label:'كلمة المرور *',             key:'password',  type:'password', ph:'••••••••',              dir:'ltr' },
-                { label:'تأكيد كلمة المرور *',      key:'password2', type:'password', ph:'••••••••',              dir:'ltr' },
+                { label:'الاسم الكامل *',           key:'name',      type:'text',     ph:'محمد عبدالله',   dir:'rtl' },
+                { label:'البريد الإلكتروني *',       key:'email',     type:'email',    ph:'you@example.com',dir:'ltr' },
+                { label:'اسم المستخدم *',            key:'username',  type:'text',     ph:'mohammed123',    dir:'ltr' },
+                { label:'رقم الجوال (واتساب) *',    key:'phone',     type:'tel',      ph:'966501234567',   dir:'ltr' },
+                { label:'كلمة المرور *',             key:'password',  type:'password', ph:'••••••••',       dir:'ltr' },
+                { label:'تأكيد كلمة المرور *',      key:'password2', type:'password', ph:'••••••••',       dir:'ltr' },
               ].map(f => (
-                <div key={f.key} className={f.key === 'name' || f.key === 'email' ? '' : ''}>
+                <div key={f.key}>
                   <label className="text-xs text-tx-3 block mb-1">{f.label}</label>
                   <input type={f.type} value={form[f.key as keyof typeof form]}
                     onChange={setF(f.key as keyof typeof form)}
@@ -170,30 +207,73 @@ export default function SubscribePage() {
         {step === 3 && (
           <div className="card p-6 space-y-4">
             <h2 className="text-xl font-black">تأكيد <span className="text-ac">الدفع</span></h2>
+
+            {/* ملخص الطلب */}
             <div className="bg-bg3 rounded-lg p-4 space-y-2.5">
               <div className="text-xs font-bold text-ac mb-2">📋 ملخص الطلب</div>
               {[
                 ['المستخدم', form.username],
                 ['الباقة',   `موجة الخبر — ${plan === 'monthly' ? 'شهري' : 'سنوي'}`],
-                ['السعر',    `${price} ر.س`],
-                ['الضريبة (15%)', `${vat} ر.س`],
+                ['السعر',    promoApplied ? <span className="line-through text-tx-3">{basePrice} ر.س</span> : `${basePrice} ر.س`],
+                ['الضريبة (15%)', promoApplied ? '—' : `${vat} ر.س`],
               ].map(([k,v]) => (
-                <div key={k} className="flex justify-between text-sm">
+                <div key={k as string} className="flex justify-between text-sm">
                   <span className="text-tx-3">{k}</span><span>{v}</span>
                 </div>
               ))}
               <div className="h-px bg-b-1 my-1" />
               <div className="flex justify-between font-black text-base">
-                <span>الإجمالي</span><span className="text-ac">{total} ر.س</span>
+                <span>الإجمالي</span>
+                <span className={promoApplied ? 'text-green-400' : 'text-ac'}>
+                  {promoApplied ? '🎉 مجاني' : `${total} ر.س`}
+                </span>
               </div>
             </div>
-            <p className="text-xs text-tx-3 text-center">سيتم تحويلك لبوابة ميسر الآمنة — بعد الدفع يُفعَّل حسابك خلال دقائق</p>
+
+            {/* === حقل كود مجاني === */}
+            <div className="border border-b-2 rounded-lg p-4 space-y-2">
+              <label className="text-xs font-bold text-tx-2 block">🎟️ هل لديك كود مجاني؟</label>
+              {!promoApplied ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoErr('') }}
+                    placeholder="أدخل الكود هنا"
+                    dir="ltr"
+                    className="flex-1 px-3 py-2 text-sm rounded-lg tracking-widest font-mono uppercase"
+                  />
+                  <button
+                    onClick={handleApplyPromo}
+                    disabled={promoLoading}
+                    className="px-4 py-2 rounded-lg bg-ac text-bg text-sm font-bold disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {promoLoading ? '⏳' : 'تطبيق'}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-mono font-bold text-ac tracking-widest">{promoCode}</span>
+                  <button onClick={removePromo} className="text-xs text-tx-3 hover:text-rd underline">إزالة</button>
+                </div>
+              )}
+              {promoErr     && <p className="text-rd text-xs">{promoErr}</p>}
+              {promoSuccess && <p className="text-green-400 text-xs">{promoSuccess}</p>}
+            </div>
+
+            {!promoApplied && (
+              <p className="text-xs text-tx-3 text-center">سيتم تحويلك لبوابة ميسر الآمنة — بعد الدفع يُفعَّل حسابك خلال دقائق</p>
+            )}
+            {promoApplied && (
+              <p className="text-xs text-green-400 text-center">✨ اشتراكك مجاني بالكامل — سيُفعَّل حسابك فور الضغط على الزر</p>
+            )}
+
             {err && <p className="text-rd text-xs text-center">{err}</p>}
             <div className="flex gap-3">
               <button onClick={() => setStep(2)} className="flex-[0.4] py-3 rounded-lg border border-b-2 text-sm">← رجوع</button>
               <button onClick={handlePay} disabled={loading}
                 className="flex-1 py-3 rounded-lg bg-ac text-bg font-bold text-sm disabled:opacity-50">
-                {loading ? '⏳ جارٍ الإرسال...' : '💳 الدفع عبر ميسر ←'}
+                {loading ? '⏳ جارٍ...' : promoApplied ? '✅ تفعيل مجاني ←' : '💳 الدفع عبر ميسر ←'}
               </button>
             </div>
           </div>
@@ -205,7 +285,9 @@ export default function SubscribePage() {
             <div className="text-6xl mb-4">✅</div>
             <h2 className="text-2xl font-black mb-2">تم إرسال طلبك!</h2>
             <p className="text-sm text-tx-3 max-w-sm mx-auto mb-6">
-              سيتم مراجعة دفعتك وتفعيل حسابك خلال دقائق. ستصلك رسالة على واتساب عند التفعيل.
+              {promoApplied
+                ? 'تم تفعيل حسابك مجاناً! ستصلك رسالة تأكيد على واتساب.'
+                : 'سيتم مراجعة دفعتك وتفعيل حسابك خلال دقائق. ستصلك رسالة على واتساب عند التفعيل.'}
             </p>
             <a href="/" className="inline-block px-8 py-3 rounded-lg bg-ac text-bg font-bold text-sm">
               العودة للتطبيق ←
