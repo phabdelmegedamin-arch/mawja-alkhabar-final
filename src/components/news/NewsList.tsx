@@ -24,6 +24,8 @@ export default function NewsList() {
             sectorData: detectSectors(item.text),
           }))
           setItems(analyzed)
+          // ✅ حفظ الأخبار في window حتى تقرأها NewsInput
+          ;(window as any).__mw_news = analyzed
         }
       } catch {}
       setLoading(false)
@@ -44,7 +46,6 @@ export default function NewsList() {
     neu: items.filter(i => i.sentiment?.dir === 'neu').length,
   }
 
-  // ✅ الدالة الصحيحة لنقل الخبر للصفحة الرئيسية
   const handleNewsClick = (text: string) => {
     window.dispatchEvent(
       new CustomEvent('mw:select-news', { detail: { text } })
@@ -110,7 +111,6 @@ export default function NewsList() {
               dir==='pos' ? 'hover:border-gr/40' : dir==='neg' ? 'hover:border-rd/40' : 'hover:border-yl/40'
             )}
             style={{ borderRight: `3px solid ${col}20` }}
-            // ✅ إصلاح: CustomEvent بدل sessionStorage الذي لم يكن يعمل
             onClick={() => handleNewsClick(item.text)}
           >
             <div className="flex items-start gap-3">
