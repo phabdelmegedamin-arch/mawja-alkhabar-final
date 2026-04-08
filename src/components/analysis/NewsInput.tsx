@@ -6,35 +6,35 @@ import type { AnalysisResult } from '@/types'
 
 const FREE_TICKERS = ['أرامكو','aramco','2222','saudi aramco','أرامكو السعودية']
 
-const SA_STOCKS: Record<string, { name: string; sector: string }> = {
-  '2222': { name: 'أرامكو السعودية',    sector: 'الطاقة' },
-  '1180': { name: 'الأهلي السعودي',      sector: 'البنوك' },
-  '1120': { name: 'الراجحي',            sector: 'البنوك' },
-  '2010': { name: 'سابك',               sector: 'البتروكيماويات' },
-  '7010': { name: 'الاتصالات السعودية',  sector: 'الاتصالات' },
-  '7020': { name: 'موبايلي',            sector: 'الاتصالات' },
-  '7030': { name: 'زين السعودية',        sector: 'الاتصالات' },
-  '2380': { name: 'بترو رابغ',          sector: 'البتروكيماويات' },
-  '2350': { name: 'سافكو',              sector: 'البتروكيماويات' },
-  '1010': { name: 'الرياض',            sector: 'البنوك' },
-  '1030': { name: 'السعودي الفرنسي',     sector: 'البنوك' },
-  '1060': { name: 'الجزيرة',           sector: 'البنوك' },
-  '1080': { name: 'العربي',            sector: 'البنوك' },
-  '1140': { name: 'البلاد',            sector: 'البنوك' },
-  '4140': { name: 'المراعي',           sector: 'الأغذية' },
-  '2280': { name: 'الزامل الصناعية',    sector: 'الصناعة' },
-  '5110': { name: 'السعودية للكهرباء',  sector: 'المرافق' },
-  '4008': { name: 'العثيم',            sector: 'التجزئة' },
-  '4007': { name: 'الحكير',            sector: 'التجزئة' },
-  '8010': { name: 'مجموعة تداول',       sector: 'المالية' },
-  '8050': { name: 'التعاونية',         sector: 'التأمين' },
-  '4050': { name: 'سابتا',            sector: 'النقل' },
-  '2060': { name: 'الغاز والتصنيع',    sector: 'الطاقة' },
-  '2330': { name: 'المتقدمة للحفر',    sector: 'الطاقة' },
-  '1150': { name: 'أملاك',            sector: 'التمويل' },
-  '6010': { name: 'التصنيع',           sector: 'الصناعة' },
-  '3030': { name: 'المتقدمة',          sector: 'البتروكيماويات' },
-  '2090': { name: 'نماء للكيماويات',   sector: 'البتروكيماويات' },
+const SA_STOCKS: Record<string, { name: string; sector: string; keywords?: string[] }> = {
+  '2222': { name: 'أرامكو السعودية',    sector: 'الطاقة',           keywords: ['أرامكو','aramco','2222','saudi aramco','أرامكو السعودية'] },
+  '1180': { name: 'الأهلي السعودي',      sector: 'البنوك',           keywords: ['الأهلي','anb','1180','الأهلي السعودي'] },
+  '1120': { name: 'الراجحي',            sector: 'البنوك',           keywords: ['الراجحي','rajhi','1120'] },
+  '2010': { name: 'سابك',               sector: 'البتروكيماويات',   keywords: ['سابك','sabic','2010'] },
+  '7010': { name: 'الاتصالات السعودية',  sector: 'الاتصالات',       keywords: ['الاتصالات السعودية','stc','7010','الاتصالات'] },
+  '7020': { name: 'موبايلي',            sector: 'الاتصالات',       keywords: ['موبايلي','mobily','7020'] },
+  '7030': { name: 'زين السعودية',        sector: 'الاتصالات',       keywords: ['زين','zain','7030'] },
+  '2380': { name: 'بترو رابغ',          sector: 'البتروكيماويات',   keywords: ['بترو رابغ','petro rabigh','2380','رابغ'] },
+  '2350': { name: 'سافكو',              sector: 'البتروكيماويات',   keywords: ['سافكو','safco','2350'] },
+  '1010': { name: 'الرياض',            sector: 'البنوك',           keywords: ['بنك الرياض','riyad bank','1010','الرياض'] },
+  '1030': { name: 'السعودي الفرنسي',     sector: 'البنوك',           keywords: ['السعودي الفرنسي','bsf','1030'] },
+  '1060': { name: 'الجزيرة',           sector: 'البنوك',           keywords: ['بنك الجزيرة','jazira','1060','الجزيرة'] },
+  '1080': { name: 'العربي',            sector: 'البنوك',           keywords: ['البنك العربي','arab national','1080','العربي'] },
+  '1140': { name: 'البلاد',            sector: 'البنوك',           keywords: ['بنك البلاد','albilad','1140','البلاد'] },
+  '4140': { name: 'المراعي',           sector: 'الأغذية',          keywords: ['المراعي','almarai','4140'] },
+  '2280': { name: 'الزامل الصناعية',    sector: 'الصناعة',          keywords: ['الزامل','zamil','2280'] },
+  '5110': { name: 'السعودية للكهرباء',  sector: 'المرافق',          keywords: ['الكهرباء','sec','5110','للكهرباء'] },
+  '4008': { name: 'العثيم',            sector: 'التجزئة',          keywords: ['العثيم','othaim','4008'] },
+  '4007': { name: 'الحكير',            sector: 'التجزئة',          keywords: ['الحكير','hokair','4007'] },
+  '8010': { name: 'مجموعة تداول',       sector: 'المالية',          keywords: ['تداول','tadawul','8010'] },
+  '8050': { name: 'التعاونية',         sector: 'التأمين',          keywords: ['التعاونية','cooperative','8050'] },
+  '4050': { name: 'سابتا',            sector: 'النقل',            keywords: ['سابتا','sapta','4050'] },
+  '2060': { name: 'الغاز والتصنيع',    sector: 'الطاقة',           keywords: ['الغاز والتصنيع','2060','الغاز'] },
+  '2330': { name: 'المتقدمة للحفر',    sector: 'الطاقة',           keywords: ['المتقدمة للحفر','advanced drilling','2330'] },
+  '1150': { name: 'أملاك',            sector: 'التمويل',          keywords: ['أملاك','amlak','1150'] },
+  '6010': { name: 'التصنيع',           sector: 'الصناعة',          keywords: ['التصنيع','manufacturing','6010'] },
+  '3030': { name: 'المتقدمة',          sector: 'البتروكيماويات',   keywords: ['المتقدمة','advanced','3030'] },
+  '2090': { name: 'نماء للكيماويات',   sector: 'البتروكيماويات',   keywords: ['نماء','nama','2090'] },
 }
 
 function searchStocks(query: string) {
@@ -45,40 +45,34 @@ function searchStocks(query: string) {
       ticker.includes(q) ||
       info.name.includes(query) ||
       info.name.toLowerCase().includes(q) ||
-      info.sector.includes(query)
+      info.sector.includes(query) ||
+      (info.keywords ?? []).some(k => k.toLowerCase().includes(q))
     )
     .slice(0, 6)
     .map(([ticker, info]) => ({ ticker, ...info }))
 }
 
-// ─── جلب أخبار السهم من /api/news مع فلترة بالاسم أو الكود ───
 async function fetchStockNews(
-  stock: { ticker: string; name: string; sector: string }
+  stock: { ticker: string; name: string; sector: string; keywords?: string[] }
 ): Promise<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>> {
   try {
     const res  = await fetch('/api/news')
     const data = await res.json()
     if (!data.success || !Array.isArray(data.data)) return []
 
-    const keywords = [
-      stock.ticker,
-      stock.name,
-      stock.name.split(' ')[0],          // أول كلمة من الاسم
-      stock.sector,
-    ].map(k => k.toLowerCase())
+    const stockKeywords = stock.keywords ?? []
+    const nameWords     = stock.name.split(' ').filter(w => w.length > 2)
+    const allKeywords   = [stock.ticker, stock.name, ...stockKeywords, ...nameWords]
+      .map(k => k.toLowerCase().trim())
+      .filter(Boolean)
+      .filter((v, i, a) => a.indexOf(v) === i)
 
     const filtered = data.data.filter((item: any) => {
-      const haystack = `${item.title ?? ''} ${item.text ?? ''} ${item.desc ?? ''}`.toLowerCase()
-      return keywords.some(k => haystack.includes(k))
+      const haystack = [item.title ?? '', item.text ?? '', item.desc ?? ''].join(' ').toLowerCase()
+      return allKeywords.some(k => k.length >= 3 && haystack.includes(k))
     })
 
-    // إذا لم تجد أخبار مطابقة أعد آخر 5 أخبار عامة مع إشارة
-    return filtered.length > 0
-      ? filtered.slice(0, 8)
-      : data.data.slice(0, 5).map((item: any) => ({
-          ...item,
-          title: `[عام] ${item.title}`,
-        }))
+    return filtered.slice(0, 10)
   } catch {
     return []
   }
@@ -95,11 +89,9 @@ export default function NewsInput() {
   const [progressLabel, setLabel]         = useState('')
   const [activeTab, setActiveTab]         = useState<'news' | 'stock'>('news')
   const [stockQuery, setStockQuery]       = useState('')
-  const [suggestions, setSuggestions]     = useState<Array<{ ticker: string; name: string; sector: string }>>([])
-  const [selectedStock, setSelectedStock] = useState<{ ticker: string; name: string; sector: string } | null>(null)
-
-  // ─── حالات جديدة لقائمة أخبار السهم ───
-  const [stockNews, setStockNews]           = useState<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>>([])
+  const [suggestions, setSuggestions]     = useState<Array<{ ticker: string; name: string; sector: string; keywords?: string[] }>>([])
+  const [selectedStock, setSelectedStock] = useState<{ ticker: string; name: string; sector: string; keywords?: string[] } | null>(null)
+  const [stockNews, setStockNews]               = useState<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>>([])
   const [stockNewsLoading, setStockNewsLoading] = useState(false)
   const [selectedNewsIdx, setSelectedNewsIdx]   = useState<number | null>(null)
 
@@ -131,35 +123,33 @@ export default function NewsInput() {
     setText('')
   }, [])
 
-  // ─── عند اختيار سهم: جلب أخباره فوراً ───
-  const handleSelectStock = useCallback(async (stock: { ticker: string; name: string; sector: string }) => {
+  const handleSelectStock = useCallback(async (stock: { ticker: string; name: string; sector: string; keywords?: string[] }) => {
     setSelectedStock(stock)
     setStockQuery(`${stock.ticker} - ${stock.name}`)
     setSuggestions([])
     setStockNews([])
     setSelectedNewsIdx(null)
     setText('')
-
     setStockNewsLoading(true)
     const news = await fetchStockNews(stock)
     setStockNews(news)
     setStockNewsLoading(false)
   }, [])
 
-  // ─── عند اختيار خبر من القائمة ───
-  const handleSelectNewsItem = useCallback((idx: number) => {
+  const handleSelectNewsItem = useCallback((idx: number, newsList: typeof stockNews) => {
     setSelectedNewsIdx(idx)
-    const item = stockNews[idx]
+    const item = newsList[idx]
     if (item) {
-      // نستخدم النص الكامل للتحليل، أو العنوان إذا لم يوجد نص
       setText(item.text && item.text.length > 20 ? item.text : item.title)
     }
-  }, [stockNews])
+  }, [])
 
   const handleAnalyze = async () => {
     const trimmed = text.trim()
     if (!trimmed || trimmed.length < 15) {
-      setError(activeTab === 'stock' ? 'اختر خبراً من القائمة أو اكتب نصاً للتحليل' : 'أدخل نص الخبر (15 حرف على الأقل)')
+      setError(activeTab === 'stock'
+        ? 'اختر خبراً من القائمة أدناه ثم اضغط «تحليل الأثر»'
+        : 'أدخل نص الخبر (15 حرف على الأقل)')
       return
     }
     if (!canAnalyze()) {
@@ -228,21 +218,12 @@ export default function NewsInput() {
   }
 
   const inputStyle = {
-    width:        '100%',
-    background:   'var(--bg3)',
-    border:       '1px solid var(--b2)',
-    borderRadius: '8px',
-    color:        'var(--tx)',
-    fontFamily:   'Tajawal, Cairo, sans-serif',
-    fontSize:     '0.85rem',
-    padding:      '10px 12px',
-    outline:      'none',
-    boxSizing:    'border-box' as const,
+    width: '100%', background: 'var(--bg3)', border: '1px solid var(--b2)',
+    borderRadius: '8px', color: 'var(--tx)', fontFamily: 'Tajawal, Cairo, sans-serif',
+    fontSize: '0.85rem', padding: '10px 12px', outline: 'none', boxSizing: 'border-box' as const,
   }
 
-  const analyzeReady = activeTab === 'stock'
-    ? text.trim().length >= 15
-    : text.trim().length >= 15
+  const analyzeReady = text.trim().length >= 15
 
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--b1)', borderRadius: '12px', padding: '16px' }}>
@@ -252,18 +233,13 @@ export default function NewsInput() {
         {(['news', 'stock'] as const).map(tab => (
           <button key={tab}
             onClick={() => {
-              setActiveTab(tab)
-              setText('')
-              setStockQuery('')
-              setSuggestions([])
-              setSelectedStock(null)
-              setStockNews([])
-              setSelectedNewsIdx(null)
+              setActiveTab(tab); setText(''); setStockQuery(''); setSuggestions([])
+              setSelectedStock(null); setStockNews([]); setSelectedNewsIdx(null)
             }}
             style={{
               padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
               border:     activeTab === tab ? '1px solid rgba(0,229,255,0.3)' : '1px solid transparent',
-              background: activeTab === tab ? 'rgba(0,229,255,0.1)'           : 'transparent',
+              background: activeTab === tab ? 'rgba(0,229,255,0.1)' : 'transparent',
               color:      activeTab === tab ? '#00E5FF' : 'var(--t2)',
             }}>
             {tab === 'news' ? '✏️ إدخال الخبر' : '🔍 بحث بالسهم'}
@@ -271,53 +247,41 @@ export default function NewsInput() {
         ))}
       </div>
 
-      {/* ── تاب إدخال الخبر ── */}
+      {/* تاب إدخال الخبر */}
       {activeTab === 'news' && (
         <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
+          value={text} onChange={e => setText(e.target.value)}
           placeholder="الصق نص الخبر هنا… مثال: أعلنت ساما رفع سعر الفائدة الأساسي بمقدار 25 نقطة أساس"
           dir="auto"
           style={{ ...inputStyle, height: '110px', resize: 'vertical', lineHeight: '1.6' }}
         />
       )}
 
-      {/* ── تاب البحث بالسهم ── */}
+      {/* تاب البحث بالسهم */}
       {activeTab === 'stock' && (
         <div style={{ position: 'relative' }}>
 
-          {/* حقل البحث */}
           <input
-            type="text"
-            value={stockQuery}
+            type="text" value={stockQuery} autoComplete="off"
             placeholder="ابحث باسم السهم أو كوده... مثال: أرامكو أو 2222"
             style={inputStyle}
             onChange={e => handleStockSearch(e.target.value)}
-            autoComplete="off"
           />
 
-          {/* اقتراحات الأسهم */}
+          {/* اقتراحات */}
           {suggestions.length > 0 && (
             <div style={{
-              position: 'absolute', top: '100%', right: 0, left: 0,
-              background:   'var(--bg3)',
-              border:       '1px solid var(--b2)',
-              borderRadius: '8px',
-              marginTop:    '4px',
-              zIndex:       50,
-              overflow:     'hidden',
-              boxShadow:    '0 8px 24px rgba(0,0,0,0.25)',
+              position: 'absolute', top: '100%', right: 0, left: 0, zIndex: 50,
+              background: 'var(--bg3)', border: '1px solid var(--b2)', borderRadius: '8px',
+              marginTop: '4px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
             }}>
               {suggestions.map(stock => (
                 <button key={stock.ticker} onClick={() => handleSelectStock(stock)}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '10px 14px', background: 'transparent', border: 'none',
-                    borderBottom: '1px solid var(--b1)',
-                    cursor: 'pointer', textAlign: 'right',
-                    color:      'var(--tx)',
-                    fontFamily: 'Tajawal, Cairo, sans-serif',
-                    transition: 'background 0.15s',
+                    borderBottom: '1px solid var(--b1)', cursor: 'pointer', textAlign: 'right',
+                    color: 'var(--tx)', fontFamily: 'Tajawal, Cairo, sans-serif', transition: 'background 0.15s',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg4)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -343,21 +307,17 @@ export default function NewsInput() {
               borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <span style={{ fontSize: '0.8rem', color: 'var(--t2)' }}>
-                {stockNewsLoading ? 'جارٍ جلب الأخبار...' : `اختر خبراً من القائمة أدناه لتحليل تأثيره`}
+                {stockNewsLoading
+                  ? `⏳ جارٍ جلب أخبار ${selectedStock.name}...`
+                  : stockNews.length > 0
+                    ? `📰 ${stockNews.length} خبر — اختر خبراً ثم اضغط «تحليل الأثر»`
+                    : `لم تُعثر على أخبار خاصة بـ ${selectedStock.name}`}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#00E5FF', fontWeight: 700 }}>
                   {selectedStock.ticker}
                 </span>
-                <button
-                  onClick={() => {
-                    setSelectedStock(null)
-                    setStockQuery('')
-                    setText('')
-                    setSuggestions([])
-                    setStockNews([])
-                    setSelectedNewsIdx(null)
-                  }}
+                <button onClick={() => { setSelectedStock(null); setStockQuery(''); setText(''); setSuggestions([]); setStockNews([]); setSelectedNewsIdx(null) }}
                   style={{ background: 'none', border: 'none', color: 'var(--t2)', cursor: 'pointer', fontSize: '1rem', padding: '0 4px' }}>
                   ✕
                 </button>
@@ -365,90 +325,70 @@ export default function NewsInput() {
             </div>
           )}
 
-          {/* ─── قائمة أخبار السهم ─── */}
-          {selectedStock && !stockNewsLoading && stockNews.length > 0 && (
-            <div style={{ marginTop: '10px' }}>
-              <p style={{ fontSize: '0.75rem', color: 'var(--t2)', marginBottom: '6px' }}>
-                📰 آخر أخبار {selectedStock.name} — اختر خبراً ثم اضغط «تحليل الأثر»
-              </p>
-              <div style={{
-                display: 'flex', flexDirection: 'column', gap: '6px',
-                maxHeight: '260px', overflowY: 'auto',
-              }}>
-                {stockNews.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSelectNewsItem(idx)}
-                    style={{
-                      width: '100%', textAlign: 'right', padding: '10px 14px',
-                      background: selectedNewsIdx === idx ? 'rgba(0,229,255,0.1)' : 'var(--bg3)',
-                      border: selectedNewsIdx === idx
-                        ? '1px solid rgba(0,229,255,0.4)'
-                        : '1px solid var(--b2)',
-                      borderRadius: '8px', cursor: 'pointer',
-                      color: 'var(--tx)',
-                      fontFamily: 'Tajawal, Cairo, sans-serif',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => {
-                      if (selectedNewsIdx !== idx)
-                        e.currentTarget.style.borderColor = 'rgba(0,229,255,0.25)'
-                    }}
-                    onMouseLeave={e => {
-                      if (selectedNewsIdx !== idx)
-                        e.currentTarget.style.borderColor = 'var(--b2)'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.83rem', fontWeight: 600, lineHeight: 1.5, marginBottom: '4px' }}>
-                      {item.title}
-                    </div>
-                    {item.desc && (
-                      <div style={{
-                        fontSize: '0.75rem', color: 'var(--t2)', lineHeight: 1.4,
-                        display: '-webkit-box', WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                      }}>
-                        {item.desc}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '0.7rem', color: 'var(--t2)' }}>
-                      {item.source && <span>📡 {item.source}</span>}
-                      {item.pubDate && <span>🕐 {new Date(item.pubDate).toLocaleDateString('ar-SA')}</span>}
-                      {selectedNewsIdx === idx && (
-                        <span style={{ color: '#00E5FF', marginRight: 'auto' }}>✓ محدد</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* حالة: لا توجد أخبار */}
-          {selectedStock && !stockNewsLoading && stockNews.length === 0 && (
-            <div style={{
-              marginTop: '10px', padding: '12px', textAlign: 'center',
-              background: 'var(--bg3)', border: '1px solid var(--b2)',
-              borderRadius: '8px', fontSize: '0.8rem', color: 'var(--t2)',
-            }}>
-              لم يتم العثور على أخبار لهذا السهم حالياً
-            </div>
-          )}
-
-          {/* حالة: جارٍ التحميل */}
+          {/* جارٍ التحميل */}
           {stockNewsLoading && (
+            <div style={{
+              marginTop: '10px', padding: '20px', textAlign: 'center',
+              background: 'var(--bg3)', border: '1px solid var(--b2)', borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+              fontSize: '0.82rem', color: 'var(--t2)',
+            }}>
+              <span style={{
+                width: '16px', height: '16px', border: '2px solid #00E5FF',
+                borderTopColor: 'transparent', borderRadius: '50%',
+                animation: 'spin 0.7s linear infinite', display: 'inline-block', flexShrink: 0,
+              }} />
+              جارٍ جلب أخبار {selectedStock?.name}...
+            </div>
+          )}
+
+          {/* قائمة الأخبار */}
+          {!stockNewsLoading && stockNews.length > 0 && (
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
+              {stockNews.map((item, idx) => (
+                <button key={idx} onClick={() => handleSelectNewsItem(idx, stockNews)}
+                  style={{
+                    width: '100%', textAlign: 'right', padding: '10px 14px',
+                    background: selectedNewsIdx === idx ? 'rgba(0,229,255,0.1)' : 'var(--bg3)',
+                    border: selectedNewsIdx === idx ? '1px solid rgba(0,229,255,0.5)' : '1px solid var(--b2)',
+                    borderRadius: '8px', cursor: 'pointer', color: 'var(--tx)',
+                    fontFamily: 'Tajawal, Cairo, sans-serif', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { if (selectedNewsIdx !== idx) { e.currentTarget.style.borderColor = 'rgba(0,229,255,0.3)'; e.currentTarget.style.background = 'var(--bg4)' } }}
+                  onMouseLeave={e => { if (selectedNewsIdx !== idx) { e.currentTarget.style.borderColor = 'var(--b2)'; e.currentTarget.style.background = 'var(--bg3)' } }}
+                >
+                  <div style={{ fontSize: '0.83rem', fontWeight: 600, lineHeight: 1.5, marginBottom: '4px' }}>
+                    {item.title}
+                  </div>
+                  {item.desc && (
+                    <div style={{
+                      fontSize: '0.75rem', color: 'var(--t2)', lineHeight: 1.4, marginBottom: '4px',
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+                    }}>
+                      {item.desc}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '10px', fontSize: '0.7rem', color: 'var(--t2)', alignItems: 'center' }}>
+                    {item.source  && <span>📡 {item.source}</span>}
+                    {item.pubDate && <span>🕐 {(() => { try { return new Date(item.pubDate).toLocaleDateString('ar-SA') } catch { return item.pubDate } })()}</span>}
+                    {selectedNewsIdx === idx && <span style={{ color: '#00E5FF', fontWeight: 600, marginRight: 'auto' }}>✓ محدد للتحليل</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* لا توجد أخبار */}
+          {!stockNewsLoading && selectedStock && stockNews.length === 0 && (
             <div style={{
               marginTop: '10px', padding: '16px', textAlign: 'center',
               background: 'var(--bg3)', border: '1px solid var(--b2)',
-              borderRadius: '8px', fontSize: '0.8rem', color: 'var(--t2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              borderRadius: '8px', fontSize: '0.8rem', color: 'var(--t2)', lineHeight: 1.6,
             }}>
-              <span style={{
-                width: '14px', height: '14px', border: '2px solid #00E5FF',
-                borderTopColor: 'transparent', borderRadius: '50%',
-                animation: 'spin 0.7s linear infinite', display: 'inline-block',
-              }} />
-              جارٍ جلب أخبار {selectedStock?.name}...
+              <div style={{ fontSize: '1.2rem', marginBottom: '6px' }}>🔍</div>
+              لا توجد أخبار حالية خاصة بـ <strong style={{ color: 'var(--tx)' }}>{selectedStock.name}</strong>
+              <br />
+              <span style={{ fontSize: '0.72rem' }}>يمكنك إدخال خبر يدوياً من تاب «إدخال الخبر»</span>
             </div>
           )}
 
@@ -504,7 +444,6 @@ export default function NewsInput() {
         </div>
       )}
 
-      {/* Free plan notice */}
       {!isPro && (
         <p style={{ marginTop: '10px', fontSize: '0.72rem', color: 'var(--t2)', textAlign: 'center' }}>
           الباقة المجانية: أخبار أرامكو فقط •{' '}
