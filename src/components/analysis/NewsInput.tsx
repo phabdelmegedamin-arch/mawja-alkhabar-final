@@ -51,6 +51,39 @@ function searchStocks(query: string) {
     .map(([ticker, info]) => ({ ticker, ...info }))
 }
 
+// ─── جلب أخبار السهم من /api/news مع فلترة بالاسم أو الكود ───
+async function fetchStockNews(
+  stock: { ticker: string; name: string; sector: string }
+): Promise<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>> {
+  try {
+    const res  = await fetch('/api/news')
+    const data = await res.json()
+    if (!data.success || !Array.isArray(data.data)) return []
+
+    const keywords = [
+      stock.ticker,
+      stock.name,
+      stock.name.split(' ')[0],          // أول كلمة من الاسم
+      stock.sector,
+    ].map(k => k.toLowerCase())
+
+    const filtered = data.data.filter((item: any) => {
+      const haystack = `${item.title ?? ''} ${item.text ?? ''} ${item.desc ?? ''}`.toLowerCase()
+      return keywords.some(k => haystack.includes(k))
+    })
+
+    // إذا لم تجد أخبار مطابقة أعد آخر 5 أخبار عامة مع إشارة
+    return filtered.length > 0
+      ? filtered.slice(0, 8)
+      : data.data.slice(0, 5).map((item: any) => ({
+          ...item,
+          title: `[عام] ${item.title}`,
+        }))
+  } catch {
+    return []
+  }
+}
+
 export default function NewsInput() {
   const { market, setMarket, waves, setWaves,
           setLoading, setResult, setError, addHistory, isLoading } = useAnalysisStore()
@@ -65,6 +98,11 @@ export default function NewsInput() {
   const [suggestions, setSuggestions]     = useState<Array<{ ticker: string; name: string; sector: string }>>([])
   const [selectedStock, setSelectedStock] = useState<{ ticker: string; name: string; sector: string } | null>(null)
 
+  // ─── حالات جديدة لقائمة أخبار السهم ───
+  const [stockNews, setStockNews]           = useState<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>>([])
+  const [stockNewsLoading, setStockNewsLoading] = useState(false)
+  const [selectedNewsIdx, setSelectedNewsIdx]   = useState<number | null>(null)
+
   useEffect(() => {
     const handler = (e: CustomEvent<{ text: string }>) => {
       setText(e.detail.text)
@@ -72,6 +110,8 @@ export default function NewsInput() {
       setStockQuery('')
       setSuggestions([])
       setSelectedStock(null)
+      setStockNews([])
+      setSelectedNewsIdx(null)
     }
     window.addEventListener('mw:select-news', handler as EventListener)
     return () => window.removeEventListener('mw:select-news', handler as EventListener)
@@ -86,20 +126,40 @@ export default function NewsInput() {
     setStockQuery(query)
     setSelectedStock(null)
     setSuggestions(query.length >= 2 ? searchStocks(query) : [])
-    setText(query ? `سهم ${query} في السوق السعودي — تحليل الأثر على الأسهم المرتبطة` : '')
+    setStockNews([])
+    setSelectedNewsIdx(null)
+    setText('')
   }, [])
 
-  const handleSelectStock = useCallback((stock: { ticker: string; name: string; sector: string }) => {
+  // ─── عند اختيار سهم: جلب أخباره فوراً ───
+  const handleSelectStock = useCallback(async (stock: { ticker: string; name: string; sector: string }) => {
     setSelectedStock(stock)
     setStockQuery(`${stock.ticker} - ${stock.name}`)
     setSuggestions([])
-    setText(`سهم ${stock.name} (${stock.ticker}) في قطاع ${stock.sector} بالسوق السعودي — تحليل الأثر على الأسهم المرتبطة والقطاعات المجاورة`)
+    setStockNews([])
+    setSelectedNewsIdx(null)
+    setText('')
+
+    setStockNewsLoading(true)
+    const news = await fetchStockNews(stock)
+    setStockNews(news)
+    setStockNewsLoading(false)
   }, [])
+
+  // ─── عند اختيار خبر من القائمة ───
+  const handleSelectNewsItem = useCallback((idx: number) => {
+    setSelectedNewsIdx(idx)
+    const item = stockNews[idx]
+    if (item) {
+      // نستخدم النص الكامل للتحليل، أو العنوان إذا لم يوجد نص
+      setText(item.text && item.text.length > 20 ? item.text : item.title)
+    }
+  }, [stockNews])
 
   const handleAnalyze = async () => {
     const trimmed = text.trim()
     if (!trimmed || trimmed.length < 15) {
-      setError(activeTab === 'stock' ? 'اختر سهماً أو اكتب كوده للتحليل' : 'أدخل نص الخبر (15 حرف على الأقل)')
+      setError(activeTab === 'stock' ? 'اختر خبراً من القائمة أو اكتب نصاً للتحليل' : 'أدخل نص الخبر (15 حرف على الأقل)')
       return
     }
     if (!canAnalyze()) {
@@ -167,7 +227,6 @@ export default function NewsInput() {
     }
   }
 
-  // ✅ إصلاح 1: CSS variables بدل الألوان المشفرة — يدعم الثيم الفاتح
   const inputStyle = {
     width:        '100%',
     background:   'var(--bg3)',
@@ -182,24 +241,29 @@ export default function NewsInput() {
   }
 
   const analyzeReady = activeTab === 'stock'
-    ? (selectedStock !== null || stockQuery.length >= 2)
+    ? text.trim().length >= 15
     : text.trim().length >= 15
 
   return (
-    // ✅ إصلاح 2: الحاوية الرئيسية بـ CSS variables
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--b1)', borderRadius: '12px', padding: '16px' }}>
 
       {/* Tabs */}
-      {/* ✅ إصلاح 3: الحدود السفلية بـ CSS variable */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', borderBottom: '1px solid var(--b1)', paddingBottom: '12px' }}>
         {(['news', 'stock'] as const).map(tab => (
           <button key={tab}
-            onClick={() => { setActiveTab(tab); setText(''); setStockQuery(''); setSuggestions([]); setSelectedStock(null) }}
+            onClick={() => {
+              setActiveTab(tab)
+              setText('')
+              setStockQuery('')
+              setSuggestions([])
+              setSelectedStock(null)
+              setStockNews([])
+              setSelectedNewsIdx(null)
+            }}
             style={{
               padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
               border:     activeTab === tab ? '1px solid rgba(0,229,255,0.3)' : '1px solid transparent',
               background: activeTab === tab ? 'rgba(0,229,255,0.1)'           : 'transparent',
-              // ✅ إصلاح 4: لون النص غير النشط بـ CSS variable
               color:      activeTab === tab ? '#00E5FF' : 'var(--t2)',
             }}>
             {tab === 'news' ? '✏️ إدخال الخبر' : '🔍 بحث بالسهم'}
@@ -207,7 +271,7 @@ export default function NewsInput() {
         ))}
       </div>
 
-      {/* Textarea للخبر */}
+      {/* ── تاب إدخال الخبر ── */}
       {activeTab === 'news' && (
         <textarea
           value={text}
@@ -218,9 +282,11 @@ export default function NewsInput() {
         />
       )}
 
-      {/* البحث بالسهم */}
+      {/* ── تاب البحث بالسهم ── */}
       {activeTab === 'stock' && (
         <div style={{ position: 'relative' }}>
+
+          {/* حقل البحث */}
           <input
             type="text"
             value={stockQuery}
@@ -230,7 +296,7 @@ export default function NewsInput() {
             autoComplete="off"
           />
 
-          {/* ✅ إصلاح 5: قائمة الاقتراحات بـ CSS variables */}
+          {/* اقتراحات الأسهم */}
           {suggestions.length > 0 && (
             <div style={{
               position: 'absolute', top: '100%', right: 0, left: 0,
@@ -258,7 +324,6 @@ export default function NewsInput() {
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{stock.name}</span>
-                    {/* ✅ إصلاح 6: لون القطاع بـ CSS variable */}
                     <span style={{ fontSize: '0.72rem', color: 'var(--t2)' }}>{stock.sector}</span>
                   </div>
                   <span style={{
@@ -277,19 +342,113 @@ export default function NewsInput() {
               background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)',
               borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-              {/* ✅ إصلاح 7: لون النص بـ CSS variable */}
               <span style={{ fontSize: '0.8rem', color: 'var(--t2)' }}>
-                سيتم تحليل تأثير {selectedStock.name} على القطاعات المرتبطة
+                {stockNewsLoading ? 'جارٍ جلب الأخبار...' : `اختر خبراً من القائمة أدناه لتحليل تأثيره`}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#00E5FF', fontWeight: 700 }}>
                   {selectedStock.ticker}
                 </span>
-                <button onClick={() => { setSelectedStock(null); setStockQuery(''); setText(''); setSuggestions([]) }}
+                <button
+                  onClick={() => {
+                    setSelectedStock(null)
+                    setStockQuery('')
+                    setText('')
+                    setSuggestions([])
+                    setStockNews([])
+                    setSelectedNewsIdx(null)
+                  }}
                   style={{ background: 'none', border: 'none', color: 'var(--t2)', cursor: 'pointer', fontSize: '1rem', padding: '0 4px' }}>
                   ✕
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* ─── قائمة أخبار السهم ─── */}
+          {selectedStock && !stockNewsLoading && stockNews.length > 0 && (
+            <div style={{ marginTop: '10px' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--t2)', marginBottom: '6px' }}>
+                📰 آخر أخبار {selectedStock.name} — اختر خبراً ثم اضغط «تحليل الأثر»
+              </p>
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: '6px',
+                maxHeight: '260px', overflowY: 'auto',
+              }}>
+                {stockNews.map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSelectNewsItem(idx)}
+                    style={{
+                      width: '100%', textAlign: 'right', padding: '10px 14px',
+                      background: selectedNewsIdx === idx ? 'rgba(0,229,255,0.1)' : 'var(--bg3)',
+                      border: selectedNewsIdx === idx
+                        ? '1px solid rgba(0,229,255,0.4)'
+                        : '1px solid var(--b2)',
+                      borderRadius: '8px', cursor: 'pointer',
+                      color: 'var(--tx)',
+                      fontFamily: 'Tajawal, Cairo, sans-serif',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                      if (selectedNewsIdx !== idx)
+                        e.currentTarget.style.borderColor = 'rgba(0,229,255,0.25)'
+                    }}
+                    onMouseLeave={e => {
+                      if (selectedNewsIdx !== idx)
+                        e.currentTarget.style.borderColor = 'var(--b2)'
+                    }}
+                  >
+                    <div style={{ fontSize: '0.83rem', fontWeight: 600, lineHeight: 1.5, marginBottom: '4px' }}>
+                      {item.title}
+                    </div>
+                    {item.desc && (
+                      <div style={{
+                        fontSize: '0.75rem', color: 'var(--t2)', lineHeight: 1.4,
+                        display: '-webkit-box', WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                      }}>
+                        {item.desc}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '0.7rem', color: 'var(--t2)' }}>
+                      {item.source && <span>📡 {item.source}</span>}
+                      {item.pubDate && <span>🕐 {new Date(item.pubDate).toLocaleDateString('ar-SA')}</span>}
+                      {selectedNewsIdx === idx && (
+                        <span style={{ color: '#00E5FF', marginRight: 'auto' }}>✓ محدد</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* حالة: لا توجد أخبار */}
+          {selectedStock && !stockNewsLoading && stockNews.length === 0 && (
+            <div style={{
+              marginTop: '10px', padding: '12px', textAlign: 'center',
+              background: 'var(--bg3)', border: '1px solid var(--b2)',
+              borderRadius: '8px', fontSize: '0.8rem', color: 'var(--t2)',
+            }}>
+              لم يتم العثور على أخبار لهذا السهم حالياً
+            </div>
+          )}
+
+          {/* حالة: جارٍ التحميل */}
+          {stockNewsLoading && (
+            <div style={{
+              marginTop: '10px', padding: '16px', textAlign: 'center',
+              background: 'var(--bg3)', border: '1px solid var(--b2)',
+              borderRadius: '8px', fontSize: '0.8rem', color: 'var(--t2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}>
+              <span style={{
+                width: '14px', height: '14px', border: '2px solid #00E5FF',
+                borderTopColor: 'transparent', borderRadius: '50%',
+                animation: 'spin 0.7s linear infinite', display: 'inline-block',
+              }} />
+              جارٍ جلب أخبار {selectedStock?.name}...
             </div>
           )}
 
@@ -317,7 +476,6 @@ export default function NewsInput() {
             fontWeight: 700, fontSize: '0.85rem',
             cursor:     isLoading || !analyzeReady ? 'not-allowed' : 'pointer',
             background: isLoading || !analyzeReady ? 'rgba(0,229,255,0.2)' : '#00E5FF',
-            // ✅ إصلاح 8: لون نص الزر بـ CSS variable بدل #0D1117 المشفر
             color:      isLoading || !analyzeReady ? 'rgba(0,229,255,0.5)' : 'var(--bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s',
           }}>
@@ -340,7 +498,6 @@ export default function NewsInput() {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--t2)', marginBottom: '4px' }}>
             <span>{progressLabel}</span><span>{progress}%</span>
           </div>
-          {/* ✅ إصلاح 9: خلفية شريط التقدم بـ CSS variable */}
           <div style={{ height: '4px', background: 'var(--bg3)', borderRadius: '2px', overflow: 'hidden' }}>
             <div style={{ height: '100%', background: '#00E5FF', borderRadius: '2px', width: `${progress}%`, transition: 'width 0.5s ease' }} />
           </div>
