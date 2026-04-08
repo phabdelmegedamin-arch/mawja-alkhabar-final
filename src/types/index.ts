@@ -1,10 +1,10 @@
 // ══════════════════════════════════════════════════
 // موجة الخبر — TypeScript Types
 // ══════════════════════════════════════════════════
-
+ 
 // ── Sentiment & NLP ───────────────────────────────
 export type SentimentDirection = 'pos' | 'neg' | 'neu'
-
+ 
 export interface SentimentResult {
   score:     number               // -92 → +92
   dir:       SentimentDirection
@@ -14,20 +14,25 @@ export interface SentimentResult {
   top_cat:   'growth' | 'risk' | 'neutral' | 'general'
   raw_score: number
 }
-
+ 
 // ── Sectors & Stocks ─────────────────────────────
 export type SectorKey =
-  | 'energy' | 'banking' | 'realestate' | 'materials'
-  | 'telecom' | 'retail'  | 'industrials' | 'transport'
-  | 'healthcare' | 'tourism' | 'insurance' | 'agriculture'
-
+  | 'energy'           | 'materials'        | 'banking'
+  | 'realestate'       | 'reits'            | 'insurance'
+  | 'food'             | 'healthcare'       | 'telecom'
+  | 'tech'             | 'transport'        | 'utilities'
+  | 'capital_goods'    | 'finservices'      | 'consumer_retail'
+  | 'luxury_retail'    | 'consumer_services'| 'business_services'
+  | 'media'            | 'pharma'           | 'durables'
+  | 'household'
+ 
 export interface StockEntry {
   t: string   // ticker
   n: string   // name
   s: string   // sub-sector
   w: number   // weight 0-100
 }
-
+ 
 export interface SectorData {
   label:   string
   icon:    string
@@ -35,7 +40,7 @@ export interface SectorData {
   stocks:  StockEntry[]
   ripple:  { w2: SectorKey[]; w3: SectorKey[] }
 }
-
+ 
 export interface RippleNode {
   label?:      string
   wave:        1 | 2 | 3
@@ -52,13 +57,13 @@ export interface RippleNode {
   sectorKey?:  SectorKey
   primaryKey?: SectorKey
 }
-
+ 
 export interface SectorDetectResult {
   primary:    SectorKey
   allSectors: SectorKey[]
   scores:     Record<string, number>
 }
-
+ 
 // ── Analysis Result ───────────────────────────────
 export interface AnalysisResult {
   text:       string
@@ -74,13 +79,13 @@ export interface AnalysisResult {
   market:     'SA' | 'GLOBAL'
   ts:         string
 }
-
+ 
 export interface TimelinePoint {
   l:      string
   v:      number
   active?: boolean
 }
-
+ 
 // ── Portfolio ────────────────────────────────────
 export interface Holding {
   id?:       string
@@ -92,7 +97,7 @@ export interface Holding {
   added:     number
   userId?:   string
 }
-
+ 
 export interface HoldingWithLive extends Holding {
   livePrice?:  number
   change?:     number
@@ -102,7 +107,7 @@ export interface HoldingWithLive extends Holding {
   pnlPct:      number
   dayPnl:      number
 }
-
+ 
 // ── Watchlist ────────────────────────────────────
 export interface WatchlistEntry {
   id?:       string
@@ -111,7 +116,7 @@ export interface WatchlistEntry {
   addedAt:   string
   userId?:   string
 }
-
+ 
 // ── History ──────────────────────────────────────
 export interface HistoryEntry {
   id:           number
@@ -127,11 +132,11 @@ export interface HistoryEntry {
   usedAI?:      boolean
   market?:      string
 }
-
+ 
 // ── Auth & Subscriptions ─────────────────────────
 export type PlanType = 'free' | 'pro' | 'admin'
 export type PlanPeriod = 'monthly' | 'yearly'
-
+ 
 export interface UserSession {
   id?:       string
   name:      string
@@ -142,7 +147,7 @@ export interface UserSession {
   lifetime?: boolean
   expiresAt?: string
 }
-
+ 
 export interface Subscriber {
   id:          string
   username:    string
@@ -158,7 +163,7 @@ export interface Subscriber {
   expiresAt?:  string
   lastLoginAt?: string
 }
-
+ 
 export interface SubscriptionCode {
   code:      string
   plan:      PlanType
@@ -169,7 +174,7 @@ export interface SubscriptionCode {
   lastUsed?: string
   usedBy?:   string
 }
-
+ 
 // ── News ─────────────────────────────────────────
 export interface NewsItem {
   id:           string
@@ -187,7 +192,7 @@ export interface NewsItem {
   isNew?:       boolean
   fetchedAt:    number
 }
-
+ 
 // ── Admin ────────────────────────────────────────
 export interface AdminUser {
   name:   string
@@ -197,7 +202,7 @@ export interface AdminUser {
   ph2:    string   // password2 hash
   role:   'super' | 'sub'
 }
-
+ 
 // ── API Responses ─────────────────────────────────
 export interface ApiResponse<T = unknown> {
   success: boolean
@@ -205,14 +210,14 @@ export interface ApiResponse<T = unknown> {
   error?:  string
   message?: string
 }
-
+ 
 export interface AnalyzeRequest {
   text:    string
   market?: 'SA' | 'GLOBAL'
   waves?:  '3' | '5'
   useAI?:  boolean
 }
-
+ 
 // ── Live Prices ──────────────────────────────────
 export interface LivePrice {
   ticker:  string
@@ -221,3 +226,4 @@ export interface LivePrice {
   spark?:  number[]
   ts:      number
 }
+ 
