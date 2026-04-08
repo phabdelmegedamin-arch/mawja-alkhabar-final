@@ -52,7 +52,30 @@ function searchStocks(query: string) {
     .map(([ticker, info]) => ({ ticker, ...info }))
 }
 
-async function fetchStockNews(
+// ✅ يقرأ من window.__mw_news (المحملة بالفعل في NewsList) بدل fetch جديد
+function filterStockNews(
+  stock: { ticker: string; name: string; sector: string; keywords?: string[] }
+): Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }> {
+  const allNews: any[] = (window as any).__mw_news ?? []
+  if (allNews.length === 0) return []
+
+  const stockKeywords = stock.keywords ?? []
+  const nameWords     = stock.name.split(' ').filter(w => w.length > 2)
+  const allKeywords   = [stock.ticker, stock.name, ...stockKeywords, ...nameWords]
+    .map(k => k.toLowerCase().trim())
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i)
+
+  const filtered = allNews.filter((item: any) => {
+    const haystack = [item.title ?? '', item.text ?? '', item.desc ?? ''].join(' ').toLowerCase()
+    return allKeywords.some(k => k.length >= 3 && haystack.includes(k))
+  })
+
+  return filtered.slice(0, 10)
+}
+
+// ✅ fallback: إذا window فارغة يجلب من API
+async function fetchStockNewsFromAPI(
   stock: { ticker: string; name: string; sector: string; keywords?: string[] }
 ): Promise<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>> {
   try {
@@ -72,10 +95,26 @@ async function fetchStockNews(
       return allKeywords.some(k => k.length >= 3 && haystack.includes(k))
     })
 
+    // حفظ في window للمرات القادمة
+    if (data.data.length > 0) {
+      ;(window as any).__mw_news = data.data
+    }
+
     return filtered.slice(0, 10)
   } catch {
     return []
   }
+}
+
+async function getStockNews(
+  stock: { ticker: string; name: string; sector: string; keywords?: string[] }
+): Promise<Array<{ title: string; text: string; desc?: string; pubDate?: string; source?: string }>> {
+  // أولاً: جرب من window (الأخبار المحملة مسبقاً)
+  const fromWindow = filterStockNews(stock)
+  if (fromWindow.length > 0) return fromWindow
+
+  // ثانياً: إذا فارغة اجلب من API
+  return fetchStockNewsFromAPI(stock)
 }
 
 export default function NewsInput() {
@@ -131,7 +170,7 @@ export default function NewsInput() {
     setSelectedNewsIdx(null)
     setText('')
     setStockNewsLoading(true)
-    const news = await fetchStockNews(stock)
+    const news = await getStockNews(stock)
     setStockNews(news)
     setStockNewsLoading(false)
   }, [])
@@ -328,7 +367,7 @@ export default function NewsInput() {
           {/* جارٍ التحميل */}
           {stockNewsLoading && (
             <div style={{
-              marginTop: '10px', padding: '20px', textAlign: 'center',
+              marginTop: '10px', padding: '20px',
               background: 'var(--bg3)', border: '1px solid var(--b2)', borderRadius: '8px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
               fontSize: '0.82rem', color: 'var(--t2)',
