@@ -1,9 +1,6 @@
 // ══════════════════════════════════════════════════════════════════
 // المسار: src/app/api/analyze/route.ts
-// الإصلاح: ربط محرك NLP بمحرك الشبكة (news-impact-engine)
-// الآن كل تحليل يُنتج نتيجتين:
-//   ١. NLP ripples (القطاعات العامة — كما كان)
-//   ٢. networkResult (شبكة الملكية الحقيقية — جديد)
+// الإصلاح: ربط محرك NLP بمحرك الشبكة — بدون استيراد NetworkAnalysisResult
 // ══════════════════════════════════════════════════════════════════
  
 import { NextRequest, NextResponse } from 'next/server'
@@ -12,7 +9,7 @@ import {
   calculateNewsImpact,
   extractOriginStockFromText,
 } from '@/lib/news-impact-engine'
-import type { AnalyzeRequest, ApiResponse, AnalysisResult, NetworkAnalysisResult } from '@/types'
+import type { AnalyzeRequest, ApiResponse, AnalysisResult } from '@/types'
  
 export const runtime = 'edge'
  
@@ -35,30 +32,57 @@ export async function POST(req: NextRequest) {
     const ripples  = buildRipples(primary, allSectors, sentiment, waves)
     const timeline = buildTimeline(sentiment)
  
-    // ── ١. محرك NLP (كما كان) ──────────────────────────────────
+    // ── ١. Claude Insight (اختياري) ────────────────────────────
     let insight: string | undefined
     if (useAI) {
       const apiKey = req.headers.get('x-api-key') || process.env.ANTHROPIC_API_KEY
       if (apiKey) insight = await fetchClaudeInsight(trimmed, primary, allSectors, sentiment, apiKey)
     }
  
-    // ── ٢. محرك الشبكة (جديد) ──────────────────────────────────
-    // كشف السهم الأصلي من النص
+    // ── ٢. محرك الشبكة ─────────────────────────────────────────
     const originCode = extractOriginStockFromText(trimmed)
  
-    let networkResult: NetworkAnalysisResult | undefined
+    // نعرّف النوع محلياً بدل استيراده من @/types
+    let networkResult: {
+      meta: {
+        requestId:     string
+        timestamp:     string
+        originStock:   { code: string; name: string; sector: string }
+        baseImpact:    number
+        parameters:    { S: number; M: number; T: number; marketState: string }
+        totalAffected: number
+        processingMs:  number
+      }
+      impacts: Array<{
+        rank:           number
+        stockCode:      string
+        stockName:      string
+        sector:         string
+        market:         string
+        impactPct:      number
+        direction:      'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+        relationType:   string
+        layer:          number
+        ownershipPct:   number | null
+        effectiveOwn:   number
+        timeframeLabel: string
+        path:           string[]
+        formula:        string
+        strength:       number
+      }>
+      warnings: string[]
+    } | undefined
+ 
     let networkError: string | undefined
  
     if (originCode) {
       try {
-        // حساب baseImpact من درجة المشاعر (النطاق: ±92 → ±10%)
-        const sentimentScore = sentiment.score  // -92 إلى +92
-        const baseImpact = parseFloat((sentimentScore / 92 * 10).toFixed(2))
+        // baseImpact من درجة المشاعر (النطاق: ±92 → ±10%)
+        const baseImpact = parseFloat((sentiment.score / 92 * 10).toFixed(2))
  
-        // استدعاء محرك الشبكة
         const engineResult = calculateNewsImpact({
           originStockCode:    originCode,
-          baseImpact:         baseImpact,
+          baseImpact,
           newsText:           trimmed,
           marketState:        'NEUTRAL',
           hoursElapsed:       0,
@@ -66,7 +90,6 @@ export async function POST(req: NextRequest) {
           minImpactThreshold: 0.05,
         })
  
-        // تحويل النتيجة للشكل المطلوب في AnalysisResult
         networkResult = {
           meta: {
             requestId:     engineResult.meta.requestId,
@@ -102,23 +125,22 @@ export async function POST(req: NextRequest) {
       }
     }
  
-    // ── بناء النتيجة النهائية ──────────────────────────────────
+    // ── النتيجة النهائية ────────────────────────────────────────
     const result: AnalysisResult = {
       text: trimmed,
       sentiment,
       primary,
       allSectors,
       ripples,
-      stocks: ripples.filter(r => !r.isHead),
+      stocks:     ripples.filter(r => !r.isHead),
       timeline,
       insight,
       confidence: useAI ? 82 : originCode ? 75 : 65,
       usedAI:     !!insight,
       market,
       ts:         new Date().toISOString(),
-      // حقول الشبكة الجديدة
       networkResult,
-      originCode:  originCode ?? undefined,
+      originCode: originCode ?? undefined,
     }
  
     return NextResponse.json<ApiResponse<AnalysisResult>>({
@@ -141,8 +163,8 @@ async function fetchClaudeInsight(
   try {
     const { DB } = await import('@/data/market-db')
     const db = DB as Record<string, { label: string }>
-    const pLabel  = db[primary]?.label ?? primary
-    const sLabels = allSectors.slice(0,4).map(k => db[k]?.label).filter(Boolean).join('، ')
+    const pLabel   = db[primary]?.label ?? primary
+    const sLabels  = allSectors.slice(0,4).map(k => db[k]?.label).filter(Boolean).join('، ')
     const dirLabel = sentiment.dir === 'pos' ? 'إيجابي' : sentiment.dir === 'neg' ? 'سلبي' : 'محايد'
  
     const res = await fetch('https://api.anthropic.com/v1/messages', {
