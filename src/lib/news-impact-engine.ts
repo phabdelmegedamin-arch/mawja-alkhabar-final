@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════════════════════════════
 // موجة الخبر — محرك حساب تأثير الأخبار
 // المسار: src/lib/news-impact-engine.ts
-// الحالة: ملف جديد — لا يوجد في البرنامج الأصلي
-// المعادلة: Impact(B) = Base(A) × Ownership% × S × M × T(t) × L
+// الإصلاح: تصحيح خطأ التضاعف في LAYER_DECAY + إصلاح إشارة الاتجاه
+// المعادلة: Impact(B) = Base(A) × Ownership% × LayerDecay × S × M × T(t) × L
 // ══════════════════════════════════════════════════════════════════
  
 import {
@@ -79,7 +79,8 @@ export interface NewsImpactResponse {
 // الثوابت
 // ══════════════════════════════════════════════════════════════════
  
-const LAYER_DECAY: Record<number, number> = { 1:1.0, 2:0.7, 3:0.5, 4:0.25 }
+// معاملات التخفيف لكل طبقة — تُطبَّق مرة واحدة فقط على الملكية المباشرة
+const LAYER_DECAY: Record<number, number> = { 1: 1.0, 2: 0.70, 3: 0.50, 4: 0.25 }
  
 const MARKET_MULTIPLIER: Record<MarketState, number> = {
   RISK_ON:  1.3,
@@ -99,6 +100,7 @@ const CLASSIFY_RULES: Array<{
 }> = [
   { pattern: /أرباح.{0,20}(فاق|تجاوز|أفضل|ارتفع|نما|قفز|قياسي)/i,    type:'EARNINGS_BEAT',    s:1.8, dir:'POSITIVE' },
   { pattern: /أرباح.{0,20}(دون|تراجع|انخفض|خسارة|هبط|أقل من)/i,      type:'EARNINGS_MISS',    s:1.8, dir:'NEGATIVE' },
+  { pattern: /خسارة.{0,30}(مليار|مليون|صافية|فادحة)/i,                 type:'EARNINGS_MISS',    s:2.0, dir:'NEGATIVE' },
   { pattern: /(رفع|زيادة|ارتفاع).{0,10}(الفائدة|سعر الفائدة)/i,        type:'RATE_HIKE',        s:1.3, dir:'POSITIVE' },
   { pattern: /(خفض|تخفيض|تراجع).{0,10}(الفائدة|سعر الفائدة)/i,        type:'RATE_CUT',         s:1.3, dir:'POSITIVE' },
   { pattern: /(ارتفع|صعد|قفز).{0,15}(النفط|برنت|الخام)/i,             type:'OIL_UP',           s:1.5, dir:'POSITIVE' },
@@ -109,6 +111,10 @@ const CLASSIFY_RULES: Array<{
   { pattern: /(توزيعات|أرباح نقدية).{0,20}(استثنائي|إضافي)/i,          type:'DIVIDEND',         s:1.2, dir:'POSITIVE' },
   { pattern: /(رفع|تحسين).{0,15}(التوقعات|guidance|الأهداف)/i,         type:'GUIDANCE_UP',      s:1.6, dir:'POSITIVE' },
   { pattern: /(رخصة|موافقة|قرار).{0,15}(هيئة|وزارة|تنظيمي|تشغيل)/i,   type:'REGULATORY',       s:1.4, dir:'POSITIVE' },
+  // أنماط سلبية إضافية
+  { pattern: /(تراجع|انخفض|هبط|تدهور).{0,20}(أرباح|إيرادات|مبيعات)/i, type:'EARNINGS_MISS',    s:1.6, dir:'NEGATIVE' },
+  { pattern: /(إفلاس|تعثر|إعسار|توقف عن السداد)/i,                      type:'EARNINGS_MISS',    s:2.5, dir:'NEGATIVE' },
+  { pattern: /(غرامة|عقوبة|تشديد تنظيمي).{0,20}(مليار|مليون)/i,        type:'REGULATORY',       s:1.8, dir:'NEGATIVE' },
 ]
  
 export function classifyNews(newsText: string): NewsClassification {
@@ -144,8 +150,20 @@ export function estimateTimeframe(layer: number): { minHrs:number; maxHrs:number
 }
  
 // ══════════════════════════════════════════════════════════════════
-// ٣. الدالة الرئيسية — المعادلة الكاملة
-// Impact(B) = Base(A) × Ownership% × S × M × T(t) × L
+// ٣. الدالة الرئيسية — المعادلة الكاملة المُصلَحة
+//
+// ✅ الإصلاح #1: LAYER_DECAY يُطبَّق مرة واحدة فقط
+//    الكود القديم الخاطئ:
+//      effectiveOwn = cumOwn * ownershipRatio * LAYER_DECAY[layer]
+//      → يُضاعف الـ decay لأن cumOwn نفسه محمّل بـ decay الطبقة السابقة
+//
+//    الكود الجديد الصحيح:
+//      ownershipChain = cumOwn * ownershipRatio  (الملكية المتراكمة فقط)
+//      layerDecay = LAYER_DECAY[layer]           (التخفيف يُطبَّق مرة لكل علاقة)
+//      impact = base × ownershipChain × layerDecay × S × M × T × L
+//      وفي BFS التالي: cumOwn = ownershipChain (بدون الـ decay)
+//
+// ✅ الإصلاح #2: الإشارة تتبع baseImpact مع مراعاة direction الخبر
 // ══════════════════════════════════════════════════════════════════
  
 export function calculateNewsImpact(params: NewsImpactParams): NewsImpactResponse {
@@ -159,13 +177,20 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
     marketState        = 'NEUTRAL',
     hoursElapsed       = 0,
     maxDepth           = 3,
-    minImpactThreshold = 0.1,
+    minImpactThreshold = 0.05,
   } = params
  
   // ── تصنيف الخبر ───────────────────────────────────────────────
   const classification = newsText
     ? classifyNews(newsText)
-    : { type: params.newsType ?? 'GENERAL', name_ar: NEWS_TYPES[params.newsType ?? 'GENERAL']?.name_ar ?? 'خبر عام', suggestedS:1.0, confidence:0.3, direction:'NEUTRAL' as const, lambda:1.0 }
+    : {
+        type:       params.newsType ?? 'GENERAL',
+        name_ar:    NEWS_TYPES[params.newsType ?? 'GENERAL']?.name_ar ?? 'خبر عام',
+        suggestedS: 1.0,
+        confidence: 0.3,
+        direction:  'NEUTRAL' as const,
+        lambda:     1.0,
+      }
  
   const newsTypeData = getNewsType(classification.type)
  
@@ -175,12 +200,22 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
   const lambda = newsTypeData.lambda
   const T      = Math.exp(-lambda * hoursElapsed)   // T(t) = e^(-λt)
  
+  // ✅ الإصلاح #2: تحديد الإشارة من الخبر إذا لم تكن موجودة في baseImpact
+  // إذا baseImpact موجب لكن الخبر سلبي → نعكس الإشارة
+  let effectiveBase = baseImpact
+  if (classification.direction === 'NEGATIVE' && baseImpact > 0) {
+    effectiveBase = -Math.abs(baseImpact)
+  } else if (classification.direction === 'POSITIVE' && baseImpact < 0) {
+    effectiveBase = Math.abs(baseImpact)
+  }
+ 
   // ── التحذيرات ─────────────────────────────────────────────────
   const warnings: string[] = []
   if (!inputS)             warnings.push('S تم تقديره تلقائياً من نص الخبر')
   if (marketState === 'NEUTRAL') warnings.push('M = 1.0 (محايد) — يُنصح بتحديد حالة السوق')
   if (hoursElapsed === 0)  warnings.push('T = 1.0 (تأثير فوري) — لم تُحدَّد ساعات منذ الخبر')
   if (classification.confidence < 0.5) warnings.push('تصنيف الخبر غير مؤكد — التحقق اليدوي يُنصح به')
+  if (effectiveBase !== baseImpact) warnings.push(`تم تعديل إشارة التأثير بناءً على اتجاه الخبر (${classification.direction})`)
  
   // ── السهم الأصلي ──────────────────────────────────────────────
   const originInfo = STOCK_INFO[originStockCode]
@@ -193,19 +228,21 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
     stockName:    originInfo?.name ?? originStockCode,
     sector:       originInfo?.sector ?? 'غير محدد',
     market:       originInfo?.market ?? 'TASI',
-    impactPct:    parseFloat(baseImpact.toFixed(4)),
-    direction:    baseImpact > 0 ? 'POSITIVE' : baseImpact < 0 ? 'NEGATIVE' : 'NEUTRAL',
+    impactPct:    parseFloat(effectiveBase.toFixed(4)),
+    direction:    effectiveBase > 0 ? 'POSITIVE' : effectiveBase < 0 ? 'NEGATIVE' : 'NEUTRAL',
     relationType: 'ORIGIN',
     layer:        0,
     ownershipPct: null,
     effectiveOwn: 1.0,
     timeframe:    estimateTimeframe(0),
     path:         [originStockCode],
-    formula:      `${baseImpact}% × 1.0 × S${S} × M${M} × T${T.toFixed(2)} × L${originInfo?.liquidity ?? 1.0}`,
+    formula:      `${effectiveBase}% × 1.0 × S${S} × M${M} × T${T.toFixed(2)} × L${originInfo?.liquidity ?? 1.0}`,
     strength:     10,
   })
  
   // ── BFS — انتشار التأثير عبر شبكة العلاقات ───────────────────
+  // ✅ الإصلاح #1: cumOwn يحمل فقط نسبة الملكية المتراكمة (بدون decay)
+  // الـ decay يُطبَّق لحظة حساب impact فقط — وليس يتراكم في cumOwn
   const queue: Array<{ code:string; cumOwn:number; depth:number; path:string[] }> = [
     { code:originStockCode, cumOwn:1.0, depth:0, path:[originStockCode] },
   ]
@@ -220,14 +257,21 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
       if (visited.has(rel.owned_code)) continue
       visited.add(rel.owned_code)
  
-      const ownershipRatio   = rel.ownership_pct > 0 ? rel.ownership_pct / 100 : 0.35
-      const effectiveOwn     = cumOwn * ownershipRatio * LAYER_DECAY[rel.layer]
-      const stockInfo        = STOCK_INFO[rel.owned_code]
-      const L                = stockInfo?.liquidity ?? 1.0
+      // نسبة الملكية المباشرة لهذه العلاقة
+      const ownershipRatio = rel.ownership_pct > 0 ? rel.ownership_pct / 100 : 0.35
  
-      // ══ المعادلة الكاملة ════════════════════════════════════════
-      // Impact(B) = Base(A) × Ownership% × S × M × T(t) × L
-      const impact = baseImpact * effectiveOwn * S * M * T * L
+      // ✅ الإصلاح #1:
+      // ownershipChain = تراكم الملكية عبر السلسلة (بدون decay)
+      // layerDecay     = معامل التخفيف للطبقة الحالية فقط
+      const ownershipChain = cumOwn * ownershipRatio
+      const layerDecay     = LAYER_DECAY[rel.layer] ?? 0.25
+ 
+      const stockInfo = STOCK_INFO[rel.owned_code]
+      const L         = stockInfo?.liquidity ?? 1.0
+ 
+      // ══ المعادلة الكاملة المُصلَحة ═══════════════════════════════
+      // Impact(B) = Base(A) × OwnershipChain × LayerDecay × S × M × T(t) × L
+      const impact = effectiveBase * ownershipChain * layerDecay * S * M * T * L
       // ════════════════════════════════════════════════════════════
  
       if (Math.abs(impact) < minImpactThreshold) continue
@@ -245,15 +289,16 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
         relationType: rel.relation_type,
         layer:        rel.layer,
         ownershipPct: rel.ownership_pct > 0 ? rel.ownership_pct : null,
-        effectiveOwn: parseFloat(effectiveOwn.toFixed(4)),
+        effectiveOwn: parseFloat(ownershipChain.toFixed(4)),
         timeframe:    estimateTimeframe(rel.layer),
         path:         newPath,
-        formula:      `${baseImpact}% × ${effectiveOwn.toFixed(3)} × S${S} × M${M} × T${T.toFixed(2)} × L${L}`,
+        formula:      `${effectiveBase}% × ${ownershipChain.toFixed(3)} × ${layerDecay} × S${S} × M${M} × T${T.toFixed(2)} × L${L}`,
         strength:     rel.strength,
       })
  
+      // ✅ الإصلاح #1: نمرر ownershipChain (بدون decay) للطبقة التالية
       if (rel.layer <= 2) {
-        queue.push({ code:rel.owned_code, cumOwn:effectiveOwn, depth:depth+1, path:newPath })
+        queue.push({ code:rel.owned_code, cumOwn:ownershipChain, depth:depth+1, path:newPath })
       }
     }
   }
@@ -267,7 +312,7 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
       requestId:          `ni-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
       timestamp:          new Date().toISOString(),
       originStock:        { code:originStockCode, name:originInfo?.name ?? originStockCode, sector:originInfo?.sector ?? '' },
-      baseImpact,
+      baseImpact:         effectiveBase,
       parameters:         { S, M, T:parseFloat(T.toFixed(4)), marketState },
       newsClassification: classification,
       totalAffected:      results.length,
@@ -292,3 +337,59 @@ export function compareScenarios(params: NewsImpactParams) {
     pessimistic:{ label:'تحفظي',   params:{ S:0.5, M:0.7 }, results:pessimistic.impacts.slice(0,10) },
   }
 }
+ 
+// ══════════════════════════════════════════════════════════════════
+// ٥. دالة مساعدة: كشف رمز السهم الأصلي من النص
+// ══════════════════════════════════════════════════════════════════
+ 
+export function extractOriginStockFromText(text: string): string | null {
+  // ١. البحث عن كود مباشر (4 أرقام)
+  const codeMatch = text.match(/\b(\d{4})\b/)
+  if (codeMatch && STOCK_INFO[codeMatch[1]]) {
+    return codeMatch[1]
+  }
+ 
+  // ٢. البحث بالاسم — الأطول أولاً لتجنب التعارض
+  const sortedStocks = Object.entries(STOCK_INFO)
+    .sort((a, b) => b[1].name.length - a[1].name.length)
+ 
+  for (const [code, info] of sortedStocks) {
+    if (text.includes(info.name)) {
+      return code
+    }
+  }
+ 
+  // ٣. بحث جزئي بالكلمات المفتاحية المعروفة
+  const KEYWORD_MAP: Record<string, string> = {
+    'أرامكو': '2222', 'ارامكو': '2222', 'aramco': '2222',
+    'سابك': '2010', 'sabic': '2010',
+    'ينساب': '2290', 'yansab': '2290',
+    'لوبريف': '2223', 'luberef': '2223',
+    'المراعي': '2280', 'almarai': '2280',
+    'صافولا': '2050', 'savola': '2050',
+    'الراجحي': '1120', 'rajhi': '1120',
+    'الأهلي': '1180', 'snb': '1180',
+    'معادن': '1211', 'maaden': '1211',
+    'اس تي سي': '7010', 'stc': '7010',
+    'بترو رابغ': '2380',
+    'كيان': '2350',
+    'سبكيم': '2310',
+    'المتقدمة': '2330',
+    'التصنيع': '2060', 'تاسنيع': '2060',
+    'سابك للمغذيات': '2020',
+    'تنمية': '2281',
+    'الإنماء': '1150', 'اينما': '1150',
+    'البلاد': '1140',
+    'أكوا': '2082', 'acwa': '2082',
+  }
+ 
+  const lowerText = text.toLowerCase()
+  for (const [keyword, code] of Object.entries(KEYWORD_MAP)) {
+    if (lowerText.includes(keyword.toLowerCase())) {
+      return code
+    }
+  }
+ 
+  return null
+}
+ 
