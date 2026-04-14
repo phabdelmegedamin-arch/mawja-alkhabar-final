@@ -264,4 +264,3 @@ export interface LivePrice {
   spark?:  number[]
   ts:      number
 }
- 
