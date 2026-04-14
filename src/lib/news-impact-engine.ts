@@ -392,4 +392,3 @@ export function extractOriginStockFromText(text: string): string | null {
  
   return null
 }
- 
