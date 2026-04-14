@@ -64,7 +64,8 @@ export interface SectorDetectResult {
   scores:     Record<string, number>
 }
  
-// ── Network Impact (محرك الشبكة) ──────────────────
+// ── Network Impact ────────────────────────────────
+// عنصر واحد من قائمة نتائج شبكة الملكية
 export interface NetworkImpactItem {
   rank:           number
   stockCode:      string
@@ -83,6 +84,7 @@ export interface NetworkImpactItem {
   strength:       number
 }
  
+// بيانات الميتا لتحليل الشبكة
 export interface NetworkImpactMeta {
   requestId:     string
   timestamp:     string
@@ -93,6 +95,7 @@ export interface NetworkImpactMeta {
   processingMs:  number
 }
  
+// النتيجة الكاملة لمحرك الشبكة
 export interface NetworkAnalysisResult {
   meta:     NetworkImpactMeta
   impacts:  NetworkImpactItem[]
@@ -113,7 +116,7 @@ export interface AnalysisResult {
   usedAI:         boolean
   market:         'SA' | 'GLOBAL'
   ts:             string
-  // ── حقول جديدة: نتائج محرك الشبكة ──
+  // نتائج محرك الشبكة (اختيارية — تظهر عند وجود سهم محدد)
   networkResult?: NetworkAnalysisResult
   originCode?:    string
 }
@@ -172,33 +175,33 @@ export interface HistoryEntry {
 }
  
 // ── Auth & Subscriptions ─────────────────────────
-export type PlanType = 'free' | 'pro' | 'admin'
+export type PlanType   = 'free' | 'pro' | 'admin'
 export type PlanPeriod = 'monthly' | 'yearly'
  
 export interface UserSession {
-  id?:       string
-  name:      string
-  email?:    string
-  plan:      PlanType
-  token:     string
-  ts:        number
-  lifetime?: boolean
+  id?:        string
+  name:       string
+  email?:     string
+  plan:       PlanType
+  token:      string
+  ts:         number
+  lifetime?:  boolean
   expiresAt?: string
 }
  
 export interface Subscriber {
-  id:          string
-  username:    string
-  name:        string
-  email:       string
-  phone?:      string
-  plan:        PlanType
-  period?:     PlanPeriod
-  status:      'active' | 'pending' | 'expired' | 'cancelled'
-  source:      string
-  amount?:     number
-  createdAt:   string
-  expiresAt?:  string
+  id:           string
+  username:     string
+  name:         string
+  email:        string
+  phone?:       string
+  plan:         PlanType
+  period?:      PlanPeriod
+  status:       'active' | 'pending' | 'expired' | 'cancelled'
+  source:       string
+  amount?:      number
+  createdAt:    string
+  expiresAt?:   string
   lastLoginAt?: string
 }
  
@@ -215,37 +218,37 @@ export interface SubscriptionCode {
  
 // ── News ─────────────────────────────────────────
 export interface NewsItem {
-  id:           string
-  title:        string
-  desc:         string
-  link:         string
-  pubDate:      string
-  source:       string
-  sourceId:     string
-  sourceIcon:   string
-  text:         string
-  lang:         'ar' | 'en'
-  sentiment?:   SentimentResult
-  sectorData?:  SectorDetectResult
-  isNew?:       boolean
-  fetchedAt:    number
+  id:          string
+  title:       string
+  desc:        string
+  link:        string
+  pubDate:     string
+  source:      string
+  sourceId:    string
+  sourceIcon:  string
+  text:        string
+  lang:        'ar' | 'en'
+  sentiment?:  SentimentResult
+  sectorData?: SectorDetectResult
+  isNew?:      boolean
+  fetchedAt:   number
 }
  
 // ── Admin ────────────────────────────────────────
 export interface AdminUser {
-  name:   string
-  uh:     string   // username hash
-  uh2:    string   // email hash
-  ph:     string   // password hash
-  ph2:    string   // password2 hash
-  role:   'super' | 'sub'
+  name:  string
+  uh:    string
+  uh2:   string
+  ph:    string
+  ph2:   string
+  role:  'super' | 'sub'
 }
  
 // ── API Responses ─────────────────────────────────
 export interface ApiResponse<T = unknown> {
-  success: boolean
-  data?:   T
-  error?:  string
+  success:  boolean
+  data?:    T
+  error?:   string
   message?: string
 }
  
@@ -264,3 +267,4 @@ export interface LivePrice {
   spark?:  number[]
   ts:      number
 }
+ 
