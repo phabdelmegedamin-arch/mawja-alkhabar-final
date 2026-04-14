@@ -64,20 +64,58 @@ export interface SectorDetectResult {
   scores:     Record<string, number>
 }
  
+// ── Network Impact (محرك الشبكة) ──────────────────
+export interface NetworkImpactItem {
+  rank:           number
+  stockCode:      string
+  stockName:      string
+  sector:         string
+  market:         string
+  impactPct:      number
+  direction:      'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+  relationType:   string
+  layer:          number
+  ownershipPct:   number | null
+  effectiveOwn:   number
+  timeframeLabel: string
+  path:           string[]
+  formula:        string
+  strength:       number
+}
+ 
+export interface NetworkImpactMeta {
+  requestId:     string
+  timestamp:     string
+  originStock:   { code: string; name: string; sector: string }
+  baseImpact:    number
+  parameters:    { S: number; M: number; T: number; marketState: string }
+  totalAffected: number
+  processingMs:  number
+}
+ 
+export interface NetworkAnalysisResult {
+  meta:     NetworkImpactMeta
+  impacts:  NetworkImpactItem[]
+  warnings: string[]
+}
+ 
 // ── Analysis Result ───────────────────────────────
 export interface AnalysisResult {
-  text:       string
-  sentiment:  SentimentResult
-  primary:    SectorKey
-  allSectors: SectorKey[]
-  ripples:    RippleNode[]
-  stocks:     RippleNode[]
-  timeline:   TimelinePoint[]
-  insight?:   string
-  confidence: number
-  usedAI:     boolean
-  market:     'SA' | 'GLOBAL'
-  ts:         string
+  text:           string
+  sentiment:      SentimentResult
+  primary:        SectorKey
+  allSectors:     SectorKey[]
+  ripples:        RippleNode[]
+  stocks:         RippleNode[]
+  timeline:       TimelinePoint[]
+  insight?:       string
+  confidence:     number
+  usedAI:         boolean
+  market:         'SA' | 'GLOBAL'
+  ts:             string
+  // ── حقول جديدة: نتائج محرك الشبكة ──
+  networkResult?: NetworkAnalysisResult
+  originCode?:    string
 }
  
 export interface TimelinePoint {
