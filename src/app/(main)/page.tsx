@@ -1,10 +1,16 @@
 'use client'
+// ══════════════════════════════════════════════════════════════════
+// المسار: src/app/(main)/page.tsx
+// الإصلاح: إضافة NetworkImpactPanel لعرض نتائج شبكة الملكية
+// ══════════════════════════════════════════════════════════════════
+
 import { useCallback } from 'react'
-import NewsInput     from '@/components/analysis/NewsInput'
-import SentimentCard from '@/components/analysis/SentimentCard'
-import RippleWaves   from '@/components/analysis/RippleWaves'
-import SignalBar     from '@/components/analysis/SignalBar'
-import AutoFeed      from '@/components/AutoFeed'
+import NewsInput          from '@/components/analysis/NewsInput'
+import SentimentCard      from '@/components/analysis/SentimentCard'
+import RippleWaves        from '@/components/analysis/RippleWaves'
+import SignalBar          from '@/components/analysis/SignalBar'
+import NetworkImpactPanel from '@/components/analysis/NetworkImpactPanel'
+import AutoFeed           from '@/components/AutoFeed'
 import { useAnalysisStore } from '@/store/analysis'
 
 export default function HomePage() {
@@ -40,7 +46,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── Results — تظهر مباشرة تحت زر التحليل ── */}
+      {/* ── Results ── */}
       {result && (
         <>
           <SignalBar result={result} />
@@ -55,12 +61,15 @@ export default function HomePage() {
             </div>
           )}
 
+          {/* ── شبكة الملكية — البطاقة الأهم، تظهر أولاً ── */}
+          <NetworkImpactPanel result={result} />
+
           <div className="grid md:grid-cols-3 gap-4">
             <SentimentCard result={result} />
             <RippleWaves   result={result} />
             <div className="card p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-tx-2">الأسهم المتأثرة</h3>
+                <h3 className="text-sm font-bold text-tx-2">الأسهم المتأثرة (NLP)</h3>
                 <span className="tag tag-ac text-2xs">{result.stocks.length} سهم</span>
               </div>
               <div className="space-y-2 max-h-80 overflow-y-auto">
