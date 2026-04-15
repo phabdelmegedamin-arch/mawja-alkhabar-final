@@ -1,8 +1,19 @@
 // ══════════════════════════════════════════════════════════════════
 // موجة الخبر — محرك حساب تأثير الأخبار
 // المسار: src/lib/news-impact-engine.ts
-// الإصلاح: تصحيح خطأ التضاعف في LAYER_DECAY + إصلاح إشارة الاتجاه
-// المعادلة: Impact(B) = Base(A) × Ownership% × LayerDecay × S × M × T(t) × L
+//
+// ✅ الإصلاح الفلسفي الجوهري: الشبكة ثنائية الاتجاه
+//
+// المنطق الصحيح:
+//   خبر المملوك (ينساب) → يؤثر صعوداً على المالك (سابك) → (أرامكو)
+//     السبب: خسارة ينساب = خسارة مباشرة في قيمة حصة سابك = NAV
+//     الاتجاه: UPWARD — الأقوى والأسرع
+//
+//   خبر المالك (أرامكو) → قد يؤثر نزولاً على المملوك (سابك) → (ينساب)
+//     السبب: تغيير في استراتيجية المالك أو قراراته
+//     الاتجاه: DOWNWARD — أضعف وأبطأ (معامل تخفيف إضافي 0.4)
+//
+// المعادلة: Impact(B) = Base(A) × OwnershipChain × LayerDecay × DirectionFactor × S × M × T(t) × L
 // ══════════════════════════════════════════════════════════════════
  
 import {
@@ -14,11 +25,10 @@ import {
   type MarketState,
 } from '@/data/network-db'
  
-// re-export حتى تستطيع الملفات الأخرى استيراد MarketState من هنا مباشرة
 export type { MarketState }
  
 // ══════════════════════════════════════════════════════════════════
-// أنواع المدخلات والمخرجات
+// أنواع
 // ══════════════════════════════════════════════════════════════════
  
 export interface NewsImpactParams {
@@ -34,30 +44,32 @@ export interface NewsImpactParams {
 }
  
 export interface ImpactResult {
-  rank:           number
-  stockCode:      string
-  stockName:      string
-  sector:         string
-  market:         string
-  impactPct:      number
-  direction:      'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
-  relationType:   string
-  layer:          number
-  ownershipPct:   number | null
-  effectiveOwn:   number
-  timeframe:      { minHrs: number; maxHrs: number; label: string }
-  path:           string[]
-  formula:        string
-  strength:       number
+  rank:            number
+  stockCode:       string
+  stockName:       string
+  sector:          string
+  market:          string
+  impactPct:       number
+  direction:       'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+  relationType:    string
+  layer:           number
+  ownershipPct:    number | null
+  effectiveOwn:    number
+  timeframe:       { minHrs: number; maxHrs: number; label: string }
+  path:            string[]
+  formula:         string
+  strength:        number
+  // ✅ جديد: اتجاه الانتشار في الشبكة
+  propagationDir:  'UPWARD' | 'DOWNWARD' | 'ORIGIN'
 }
  
 export interface NewsClassification {
-  type:        string
-  name_ar:     string
-  suggestedS:  number
-  confidence:  number
-  direction:   'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
-  lambda:      number
+  type:       string
+  name_ar:    string
+  suggestedS: number
+  confidence: number
+  direction:  'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
+  lambda:     number
 }
  
 export interface NewsImpactResponse {
@@ -79,8 +91,12 @@ export interface NewsImpactResponse {
 // الثوابت
 // ══════════════════════════════════════════════════════════════════
  
-// معاملات التخفيف لكل طبقة — تُطبَّق مرة واحدة فقط على الملكية المباشرة
-const LAYER_DECAY: Record<number, number> = { 1: 1.0, 2: 0.70, 3: 0.50, 4: 0.25 }
+// تخفيف حسب الطبقة — لكل اتجاه
+const LAYER_DECAY_UP: Record<number, number>   = { 1: 1.0, 2: 0.70, 3: 0.50, 4: 0.25 }
+const LAYER_DECAY_DOWN: Record<number, number> = { 1: 0.4, 2: 0.25, 3: 0.15, 4: 0.08 }
+// التفسير:
+// UPWARD أقوى: خسارة المملوك تُعادل خسارة مباشرة في NAV المالك
+// DOWNWARD أضعف: قرار المالك لا يلزم أن يؤثر على العمليات اليومية للمملوك
  
 const MARKET_MULTIPLIER: Record<MarketState, number> = {
   RISK_ON:  1.3,
@@ -89,7 +105,17 @@ const MARKET_MULTIPLIER: Record<MarketState, number> = {
 }
  
 // ══════════════════════════════════════════════════════════════════
-// ١. دالة تصنيف الخبر تلقائياً
+// دالة مساعدة: البحث عن المالكين (عكس اتجاه قاعدة البيانات)
+// قاعدة البيانات: owner_code → owned_code
+// نحتاج: owned_code → owner_code (صعوداً)
+// ══════════════════════════════════════════════════════════════════
+ 
+function getRelationsByOwned(ownedCode: string) {
+  return OWNERSHIP_RELATIONS.filter(r => r.owned_code === ownedCode)
+}
+ 
+// ══════════════════════════════════════════════════════════════════
+// ١. تصنيف الخبر
 // ══════════════════════════════════════════════════════════════════
  
 const CLASSIFY_RULES: Array<{
@@ -101,6 +127,7 @@ const CLASSIFY_RULES: Array<{
   { pattern: /أرباح.{0,20}(فاق|تجاوز|أفضل|ارتفع|نما|قفز|قياسي)/i,    type:'EARNINGS_BEAT',    s:1.8, dir:'POSITIVE' },
   { pattern: /أرباح.{0,20}(دون|تراجع|انخفض|خسارة|هبط|أقل من)/i,      type:'EARNINGS_MISS',    s:1.8, dir:'NEGATIVE' },
   { pattern: /خسارة.{0,30}(مليار|مليون|صافية|فادحة)/i,                 type:'EARNINGS_MISS',    s:2.0, dir:'NEGATIVE' },
+  { pattern: /تخسر.{0,30}(مليار|مليون)/i,                              type:'EARNINGS_MISS',    s:2.0, dir:'NEGATIVE' },
   { pattern: /(رفع|زيادة|ارتفاع).{0,10}(الفائدة|سعر الفائدة)/i,        type:'RATE_HIKE',        s:1.3, dir:'POSITIVE' },
   { pattern: /(خفض|تخفيض|تراجع).{0,10}(الفائدة|سعر الفائدة)/i,        type:'RATE_CUT',         s:1.3, dir:'POSITIVE' },
   { pattern: /(ارتفع|صعد|قفز).{0,15}(النفط|برنت|الخام)/i,             type:'OIL_UP',           s:1.5, dir:'POSITIVE' },
@@ -111,7 +138,6 @@ const CLASSIFY_RULES: Array<{
   { pattern: /(توزيعات|أرباح نقدية).{0,20}(استثنائي|إضافي)/i,          type:'DIVIDEND',         s:1.2, dir:'POSITIVE' },
   { pattern: /(رفع|تحسين).{0,15}(التوقعات|guidance|الأهداف)/i,         type:'GUIDANCE_UP',      s:1.6, dir:'POSITIVE' },
   { pattern: /(رخصة|موافقة|قرار).{0,15}(هيئة|وزارة|تنظيمي|تشغيل)/i,   type:'REGULATORY',       s:1.4, dir:'POSITIVE' },
-  // أنماط سلبية إضافية
   { pattern: /(تراجع|انخفض|هبط|تدهور).{0,20}(أرباح|إيرادات|مبيعات)/i, type:'EARNINGS_MISS',    s:1.6, dir:'NEGATIVE' },
   { pattern: /(إفلاس|تعثر|إعسار|توقف عن السداد)/i,                      type:'EARNINGS_MISS',    s:2.5, dir:'NEGATIVE' },
   { pattern: /(غرامة|عقوبة|تشديد تنظيمي).{0,20}(مليار|مليون)/i,        type:'REGULATORY',       s:1.8, dir:'NEGATIVE' },
@@ -135,35 +161,51 @@ export function classifyNews(newsText: string): NewsClassification {
 }
  
 // ══════════════════════════════════════════════════════════════════
-// ٢. دالة تقدير الإطار الزمني
+// ٢. الإطار الزمني
 // ══════════════════════════════════════════════════════════════════
  
-export function estimateTimeframe(layer: number): { minHrs:number; maxHrs:number; label:string } {
-  const map: Record<number, { minHrs:number; maxHrs:number; label:string }> = {
-    0: { minHrs:0,    maxHrs:0.08, label:'فوري — ثوانٍ'           },
-    1: { minHrs:0.08, maxHrs:1,   label:'سريع — دقائق إلى ساعة'  },
-    2: { minHrs:1,    maxHrs:6,   label:'متأخر — ساعات'           },
-    3: { minHrs:6,    maxHrs:48,  label:'بطيء — يوم إلى يومين'   },
-    4: { minHrs:24,   maxHrs:168, label:'معنوي — أيام'            },
+export function estimateTimeframe(
+  layer: number,
+  dir: 'UPWARD' | 'DOWNWARD' | 'ORIGIN' = 'UPWARD'
+): { minHrs: number; maxHrs: number; label: string } {
+  // UPWARD أسرع: السوق يُسعِّر تأثير المملوك على المالك بسرعة (NAV فوري)
+  // DOWNWARD أبطأ: يحتاج السوق لفهم انعكاس قرار المالك على العمليات
+  const map = {
+    UPWARD: {
+      0: { minHrs: 0,    maxHrs: 0.08, label: 'فوري — ثوانٍ'          },
+      1: { minHrs: 0.08, maxHrs: 1,   label: 'سريع — دقائق إلى ساعة' },
+      2: { minHrs: 1,    maxHrs: 6,   label: 'متأخر — ساعات'          },
+      3: { minHrs: 6,    maxHrs: 24,  label: 'بطيء — يوم'             },
+      4: { minHrs: 24,   maxHrs: 72,  label: 'معنوي — أيام'           },
+    },
+    DOWNWARD: {
+      0: { minHrs: 0,    maxHrs: 0.08, label: 'فوري — ثوانٍ'          },
+      1: { minHrs: 1,    maxHrs: 6,   label: 'متأخر — ساعات'          },
+      2: { minHrs: 6,    maxHrs: 48,  label: 'بطيء — يومان'           },
+      3: { minHrs: 24,   maxHrs: 120, label: 'معنوي — أيام'           },
+      4: { minHrs: 72,   maxHrs: 168, label: 'بطيء — أسبوع'           },
+    },
+    ORIGIN: {
+      0: { minHrs: 0, maxHrs: 0.08, label: 'فوري — ثوانٍ' },
+    },
   }
-  return map[layer] ?? map[4]
+  const dirMap = map[dir] as Record<number, { minHrs: number; maxHrs: number; label: string }>
+  return dirMap[layer] ?? dirMap[Math.min(layer, 4)] ?? { minHrs: 24, maxHrs: 168, label: 'معنوي' }
 }
  
 // ══════════════════════════════════════════════════════════════════
-// ٣. الدالة الرئيسية — المعادلة الكاملة المُصلَحة
+// ٣. الدالة الرئيسية — BFS ثنائي الاتجاه
 //
-// ✅ الإصلاح #1: LAYER_DECAY يُطبَّق مرة واحدة فقط
-//    الكود القديم الخاطئ:
-//      effectiveOwn = cumOwn * ownershipRatio * LAYER_DECAY[layer]
-//      → يُضاعف الـ decay لأن cumOwn نفسه محمّل بـ decay الطبقة السابقة
+// ✅ الإصلاح الجوهري: BFS في اتجاهين
 //
-//    الكود الجديد الصحيح:
-//      ownershipChain = cumOwn * ownershipRatio  (الملكية المتراكمة فقط)
-//      layerDecay = LAYER_DECAY[layer]           (التخفيف يُطبَّق مرة لكل علاقة)
-//      impact = base × ownershipChain × layerDecay × S × M × T × L
-//      وفي BFS التالي: cumOwn = ownershipChain (بدون الـ decay)
+//   UPWARD  (مملوك → مالك): البحث عبر getRelationsByOwned()
+//     — أقوى تأثيراً لأن NAV المالك يعكس قيمة المملوك مباشرة
+//     — decay أكبر (LAYER_DECAY_UP)
 //
-// ✅ الإصلاح #2: الإشارة تتبع baseImpact مع مراعاة direction الخبر
+//   DOWNWARD (مالك → مملوك): البحث عبر getRelationsByOwner()
+//     — أضعف تأثيراً (factor إضافي 0.4)
+//     — decay أصغر (LAYER_DECAY_DOWN)
+//
 // ══════════════════════════════════════════════════════════════════
  
 export function calculateNewsImpact(params: NewsImpactParams): NewsImpactResponse {
@@ -193,15 +235,12 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
       }
  
   const newsTypeData = getNewsType(classification.type)
- 
-  // ── المعاملات ─────────────────────────────────────────────────
   const S      = inputS ?? classification.suggestedS
   const M      = MARKET_MULTIPLIER[marketState]
   const lambda = newsTypeData.lambda
-  const T      = Math.exp(-lambda * hoursElapsed)   // T(t) = e^(-λt)
+  const T      = Math.exp(-lambda * hoursElapsed)
  
-  // ✅ الإصلاح #2: تحديد الإشارة من الخبر إذا لم تكن موجودة في baseImpact
-  // إذا baseImpact موجب لكن الخبر سلبي → نعكس الإشارة
+  // ── تصحيح إشارة baseImpact ────────────────────────────────────
   let effectiveBase = baseImpact
   if (classification.direction === 'NEGATIVE' && baseImpact > 0) {
     effectiveBase = -Math.abs(baseImpact)
@@ -213,107 +252,196 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
   const warnings: string[] = []
   if (!inputS)             warnings.push('S تم تقديره تلقائياً من نص الخبر')
   if (marketState === 'NEUTRAL') warnings.push('M = 1.0 (محايد) — يُنصح بتحديد حالة السوق')
-  if (hoursElapsed === 0)  warnings.push('T = 1.0 (تأثير فوري) — لم تُحدَّد ساعات منذ الخبر')
-  if (classification.confidence < 0.5) warnings.push('تصنيف الخبر غير مؤكد — التحقق اليدوي يُنصح به')
-  if (effectiveBase !== baseImpact) warnings.push(`تم تعديل إشارة التأثير بناءً على اتجاه الخبر (${classification.direction})`)
+  if (hoursElapsed === 0)  warnings.push('T = 1.0 (تأثير فوري)')
+  if (classification.confidence < 0.5) warnings.push('تصنيف الخبر غير مؤكد')
+  if (effectiveBase !== baseImpact) warnings.push(`تم تعديل إشارة التأثير (${classification.direction})`)
  
   // ── السهم الأصلي ──────────────────────────────────────────────
   const originInfo = STOCK_INFO[originStockCode]
   const results: ImpactResult[] = []
+ 
+  // visited مشترك بين الاتجاهين لمنع التكرار
   const visited = new Set<string>([originStockCode])
  
   results.push({
-    rank:         1,
-    stockCode:    originStockCode,
-    stockName:    originInfo?.name ?? originStockCode,
-    sector:       originInfo?.sector ?? 'غير محدد',
-    market:       originInfo?.market ?? 'TASI',
-    impactPct:    parseFloat(effectiveBase.toFixed(4)),
-    direction:    effectiveBase > 0 ? 'POSITIVE' : effectiveBase < 0 ? 'NEGATIVE' : 'NEUTRAL',
-    relationType: 'ORIGIN',
-    layer:        0,
-    ownershipPct: null,
-    effectiveOwn: 1.0,
-    timeframe:    estimateTimeframe(0),
-    path:         [originStockCode],
-    formula:      `${effectiveBase}% × 1.0 × S${S} × M${M} × T${T.toFixed(2)} × L${originInfo?.liquidity ?? 1.0}`,
-    strength:     10,
+    rank:           1,
+    stockCode:      originStockCode,
+    stockName:      originInfo?.name ?? originStockCode,
+    sector:         originInfo?.sector ?? 'غير محدد',
+    market:         originInfo?.market ?? 'TASI',
+    impactPct:      parseFloat(effectiveBase.toFixed(4)),
+    direction:      effectiveBase > 0 ? 'POSITIVE' : effectiveBase < 0 ? 'NEGATIVE' : 'NEUTRAL',
+    relationType:   'ORIGIN',
+    layer:          0,
+    ownershipPct:   null,
+    effectiveOwn:   1.0,
+    timeframe:      estimateTimeframe(0, 'ORIGIN'),
+    path:           [originStockCode],
+    formula:        `${effectiveBase}%`,
+    strength:       10,
+    propagationDir: 'ORIGIN',
   })
  
-  // ── BFS — انتشار التأثير عبر شبكة العلاقات ───────────────────
-  // ✅ الإصلاح #1: cumOwn يحمل فقط نسبة الملكية المتراكمة (بدون decay)
-  // الـ decay يُطبَّق لحظة حساب impact فقط — وليس يتراكم في cumOwn
-  const queue: Array<{ code:string; cumOwn:number; depth:number; path:string[] }> = [
-    { code:originStockCode, cumOwn:1.0, depth:0, path:[originStockCode] },
+  // ══════════════════════════════════════════════════════════════
+  // UPWARD BFS: المملوك → المالك
+  // منطق: خسارة ينساب → تنعكس على NAV سابك → تنعكس على NAV أرامكو
+  // هذا الاتجاه أقوى وأسرع
+  // ══════════════════════════════════════════════════════════════
+ 
+  const upQueue: Array<{ code: string; cumOwn: number; depth: number; path: string[] }> = [
+    { code: originStockCode, cumOwn: 1.0, depth: 0, path: [originStockCode] },
   ]
  
-  while (queue.length > 0) {
-    const { code, cumOwn, depth, path } = queue.shift()!
+  const visitedUp = new Set<string>([originStockCode])
+ 
+  while (upQueue.length > 0) {
+    const { code, cumOwn, depth, path } = upQueue.shift()!
     if (depth >= maxDepth) continue
  
-    const relations = getRelationsByOwner(code)
+    // نبحث عن من يملك هذا السهم (الاتجاه العكسي)
+    const ownerRelations = getRelationsByOwned(code)
  
-    for (const rel of relations) {
-      if (visited.has(rel.owned_code)) continue
-      visited.add(rel.owned_code)
+    for (const rel of ownerRelations) {
+      const ownerCode = rel.owner_code
  
-      // نسبة الملكية المباشرة لهذه العلاقة
+      // تجاهل الكيانات غير السوقية (PIF, GOSI, GPFF)
+      if (!STOCK_INFO[ownerCode]) continue
+      if (visited.has(ownerCode)) continue
+      if (visitedUp.has(ownerCode)) continue
+ 
+      visited.add(ownerCode)
+      visitedUp.add(ownerCode)
+ 
       const ownershipRatio = rel.ownership_pct > 0 ? rel.ownership_pct / 100 : 0.35
- 
-      // ✅ الإصلاح #1:
-      // ownershipChain = تراكم الملكية عبر السلسلة (بدون decay)
-      // layerDecay     = معامل التخفيف للطبقة الحالية فقط
+      // cumOwn يتراكم عبر سلسلة الملكية
       const ownershipChain = cumOwn * ownershipRatio
-      const layerDecay     = LAYER_DECAY[rel.layer] ?? 0.25
+      // LAYER_DECAY_UP: أقوى تأثير (مباشر على NAV)
+      const layerDecay = LAYER_DECAY_UP[rel.layer] ?? 0.25
  
-      const stockInfo = STOCK_INFO[rel.owned_code]
-      const L         = stockInfo?.liquidity ?? 1.0
+      const ownerInfo = STOCK_INFO[ownerCode]
+      const L = ownerInfo?.liquidity ?? 1.0
  
-      // ══ المعادلة الكاملة المُصلَحة ═══════════════════════════════
-      // Impact(B) = Base(A) × OwnershipChain × LayerDecay × S × M × T(t) × L
+      // Impact(Owner) = Base(Owned) × OwnershipChain × LayerDecay(UP) × S × M × T × L
       const impact = effectiveBase * ownershipChain * layerDecay * S * M * T * L
-      // ════════════════════════════════════════════════════════════
  
       if (Math.abs(impact) < minImpactThreshold) continue
  
-      const newPath = [...path, rel.owned_code]
+      const newPath = [...path, ownerCode]
  
       results.push({
-        rank:         0,
-        stockCode:    rel.owned_code,
-        stockName:    stockInfo?.name ?? rel.owned_name,
-        sector:       stockInfo?.sector ?? rel.owned_sector,
-        market:       stockInfo?.market ?? 'TASI',
-        impactPct:    parseFloat(impact.toFixed(4)),
-        direction:    impact > 0 ? 'POSITIVE' : impact < 0 ? 'NEGATIVE' : 'NEUTRAL',
-        relationType: rel.relation_type,
-        layer:        rel.layer,
-        ownershipPct: rel.ownership_pct > 0 ? rel.ownership_pct : null,
-        effectiveOwn: parseFloat(ownershipChain.toFixed(4)),
-        timeframe:    estimateTimeframe(rel.layer),
-        path:         newPath,
-        formula:      `${effectiveBase}% × ${ownershipChain.toFixed(3)} × ${layerDecay} × S${S} × M${M} × T${T.toFixed(2)} × L${L}`,
-        strength:     rel.strength,
+        rank:           0,
+        stockCode:      ownerCode,
+        stockName:      ownerInfo?.name ?? rel.owner_name,
+        sector:         ownerInfo?.sector ?? rel.owner_sector,
+        market:         ownerInfo?.market ?? 'TASI',
+        impactPct:      parseFloat(impact.toFixed(4)),
+        direction:      impact > 0 ? 'POSITIVE' : impact < 0 ? 'NEGATIVE' : 'NEUTRAL',
+        relationType:   rel.relation_type,
+        layer:          rel.layer,
+        ownershipPct:   rel.ownership_pct > 0 ? rel.ownership_pct : null,
+        effectiveOwn:   parseFloat(ownershipChain.toFixed(4)),
+        timeframe:      estimateTimeframe(rel.layer, 'UPWARD'),
+        path:           newPath,
+        formula:        `${effectiveBase}%×${ownershipChain.toFixed(3)}×${layerDecay}(↑)×S${S}×M${M}×T${T.toFixed(2)}×L${L}`,
+        strength:       rel.strength,
+        propagationDir: 'UPWARD',
       })
  
-      // ✅ الإصلاح #1: نمرر ownershipChain (بدون decay) للطبقة التالية
       if (rel.layer <= 2) {
-        queue.push({ code:rel.owned_code, cumOwn:ownershipChain, depth:depth+1, path:newPath })
+        upQueue.push({ code: ownerCode, cumOwn: ownershipChain, depth: depth + 1, path: newPath })
       }
     }
   }
  
-  // ── الترتيب التنازلي ──────────────────────────────────────────
-  results.sort((a, b) => Math.abs(b.impactPct) - Math.abs(a.impactPct))
+  // ══════════════════════════════════════════════════════════════
+  // DOWNWARD BFS: المالك → المملوك
+  // منطق: قرارات أرامكو قد تؤثر على سابك وينساب لكن بشكل أضعف
+  // هذا الاتجاه أضعف وأبطأ
+  // ══════════════════════════════════════════════════════════════
+ 
+  const downQueue: Array<{ code: string; cumOwn: number; depth: number; path: string[] }> = [
+    { code: originStockCode, cumOwn: 1.0, depth: 0, path: [originStockCode] },
+  ]
+ 
+  const visitedDown = new Set<string>([originStockCode])
+ 
+  while (downQueue.length > 0) {
+    const { code, cumOwn, depth, path } = downQueue.shift()!
+    if (depth >= maxDepth) continue
+ 
+    // نبحث عما يملكه هذا السهم (الاتجاه المعتاد)
+    const ownedRelations = getRelationsByOwner(code)
+ 
+    for (const rel of ownedRelations) {
+      const ownedCode = rel.owned_code
+ 
+      if (visited.has(ownedCode)) continue
+      if (visitedDown.has(ownedCode)) continue
+ 
+      visited.add(ownedCode)
+      visitedDown.add(ownedCode)
+ 
+      const ownershipRatio = rel.ownership_pct > 0 ? rel.ownership_pct / 100 : 0.35
+      const ownershipChain = cumOwn * ownershipRatio
+      // LAYER_DECAY_DOWN: أضعف تأثير
+      const layerDecay = LAYER_DECAY_DOWN[rel.layer] ?? 0.08
+ 
+      const ownedInfo = STOCK_INFO[ownedCode]
+      const L = ownedInfo?.liquidity ?? 1.0
+ 
+      // Impact(Owned) = Base(Owner) × OwnershipChain × LayerDecay(DOWN) × S × M × T × L
+      const impact = effectiveBase * ownershipChain * layerDecay * S * M * T * L
+ 
+      if (Math.abs(impact) < minImpactThreshold) continue
+ 
+      const newPath = [...path, ownedCode]
+ 
+      results.push({
+        rank:           0,
+        stockCode:      ownedCode,
+        stockName:      ownedInfo?.name ?? rel.owned_name,
+        sector:         ownedInfo?.sector ?? rel.owned_sector,
+        market:         ownedInfo?.market ?? 'TASI',
+        impactPct:      parseFloat(impact.toFixed(4)),
+        direction:      impact > 0 ? 'POSITIVE' : impact < 0 ? 'NEGATIVE' : 'NEUTRAL',
+        relationType:   rel.relation_type,
+        layer:          rel.layer,
+        ownershipPct:   rel.ownership_pct > 0 ? rel.ownership_pct : null,
+        effectiveOwn:   parseFloat(ownershipChain.toFixed(4)),
+        timeframe:      estimateTimeframe(rel.layer, 'DOWNWARD'),
+        path:           newPath,
+        formula:        `${effectiveBase}%×${ownershipChain.toFixed(3)}×${layerDecay}(↓)×S${S}×M${M}×T${T.toFixed(2)}×L${L}`,
+        strength:       rel.strength,
+        propagationDir: 'DOWNWARD',
+      })
+ 
+      if (rel.layer <= 2) {
+        downQueue.push({ code: ownedCode, cumOwn: ownershipChain, depth: depth + 1, path: newPath })
+      }
+    }
+  }
+ 
+  // ── الترتيب: المالك (UPWARD) أولاً ثم المملوك (DOWNWARD) ─────
+  // نرتب: ORIGIN ← UPWARD (أقوى) ← DOWNWARD (أضعف)
+  results.sort((a, b) => {
+    // ORIGIN دائماً أول
+    if (a.propagationDir === 'ORIGIN') return -1
+    if (b.propagationDir === 'ORIGIN') return  1
+    // UPWARD يسبق DOWNWARD
+    if (a.propagationDir === 'UPWARD' && b.propagationDir === 'DOWNWARD') return -1
+    if (a.propagationDir === 'DOWNWARD' && b.propagationDir === 'UPWARD') return  1
+    // ثم ترتيب حسب القيمة المطلقة
+    return Math.abs(b.impactPct) - Math.abs(a.impactPct)
+  })
   results.forEach((r, i) => { r.rank = i + 1 })
  
   return {
     meta: {
       requestId:          `ni-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
       timestamp:          new Date().toISOString(),
-      originStock:        { code:originStockCode, name:originInfo?.name ?? originStockCode, sector:originInfo?.sector ?? '' },
+      originStock:        { code: originStockCode, name: originInfo?.name ?? originStockCode, sector: originInfo?.sector ?? '' },
       baseImpact:         effectiveBase,
-      parameters:         { S, M, T:parseFloat(T.toFixed(4)), marketState },
+      parameters:         { S, M, T: parseFloat(T.toFixed(4)), marketState },
       newsClassification: classification,
       totalAffected:      results.length,
       processingMs:       Date.now() - startTime,
@@ -328,39 +456,33 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
 // ══════════════════════════════════════════════════════════════════
  
 export function compareScenarios(params: NewsImpactParams) {
-  const base        = calculateNewsImpact({ ...params, surpriseFactor:1.0, marketState:'NEUTRAL'  })
-  const optimistic  = calculateNewsImpact({ ...params, surpriseFactor:2.0, marketState:'RISK_ON'  })
-  const pessimistic = calculateNewsImpact({ ...params, surpriseFactor:0.5, marketState:'RISK_OFF' })
+  const base        = calculateNewsImpact({ ...params, surpriseFactor: 1.0, marketState: 'NEUTRAL'  })
+  const optimistic  = calculateNewsImpact({ ...params, surpriseFactor: 2.0, marketState: 'RISK_ON'  })
+  const pessimistic = calculateNewsImpact({ ...params, surpriseFactor: 0.5, marketState: 'RISK_OFF' })
   return {
-    base:       { label:'أساسي',   params:{ S:1.0, M:1.0 }, results:base.impacts.slice(0,10)        },
-    optimistic: { label:'تفاؤلي',  params:{ S:2.0, M:1.3 }, results:optimistic.impacts.slice(0,10)  },
-    pessimistic:{ label:'تحفظي',   params:{ S:0.5, M:0.7 }, results:pessimistic.impacts.slice(0,10) },
+    base:       { label: 'أساسي',  params: { S: 1.0, M: 1.0 }, results: base.impacts.slice(0, 10)        },
+    optimistic: { label: 'تفاؤلي', params: { S: 2.0, M: 1.3 }, results: optimistic.impacts.slice(0, 10)  },
+    pessimistic:{ label: 'تحفظي',  params: { S: 0.5, M: 0.7 }, results: pessimistic.impacts.slice(0, 10) },
   }
 }
  
 // ══════════════════════════════════════════════════════════════════
-// ٥. دالة مساعدة: كشف رمز السهم الأصلي من النص
+// ٥. كشف رمز السهم من النص
 // ══════════════════════════════════════════════════════════════════
  
 export function extractOriginStockFromText(text: string): string | null {
-  // ١. البحث عن كود مباشر (4 أرقام)
+  // ١. كود رقمي مباشر
   const codeMatch = text.match(/\b(\d{4})\b/)
-  if (codeMatch && STOCK_INFO[codeMatch[1]]) {
-    return codeMatch[1]
+  if (codeMatch && STOCK_INFO[codeMatch[1]]) return codeMatch[1]
+ 
+  // ٢. اسم كامل — الأطول أولاً
+  const sorted = Object.entries(STOCK_INFO).sort((a, b) => b[1].name.length - a[1].name.length)
+  for (const [code, info] of sorted) {
+    if (text.includes(info.name)) return code
   }
  
-  // ٢. البحث بالاسم — الأطول أولاً لتجنب التعارض
-  const sortedStocks = Object.entries(STOCK_INFO)
-    .sort((a, b) => b[1].name.length - a[1].name.length)
- 
-  for (const [code, info] of sortedStocks) {
-    if (text.includes(info.name)) {
-      return code
-    }
-  }
- 
-  // ٣. بحث جزئي بالكلمات المفتاحية المعروفة
-  const KEYWORD_MAP: Record<string, string> = {
+  // ٣. كلمات مفتاحية
+  const KEYWORDS: Record<string, string> = {
     'أرامكو': '2222', 'ارامكو': '2222', 'aramco': '2222',
     'سابك': '2010', 'sabic': '2010',
     'ينساب': '2290', 'yansab': '2290',
@@ -375,20 +497,18 @@ export function extractOriginStockFromText(text: string): string | null {
     'كيان': '2350',
     'سبكيم': '2310',
     'المتقدمة': '2330',
-    'التصنيع': '2060', 'تاسنيع': '2060',
+    'التصنيع': '2060',
     'سابك للمغذيات': '2020',
     'تنمية': '2281',
-    'الإنماء': '1150', 'اينما': '1150',
+    'الإنماء': '1150',
     'البلاد': '1140',
     'أكوا': '2082', 'acwa': '2082',
   }
- 
-  const lowerText = text.toLowerCase()
-  for (const [keyword, code] of Object.entries(KEYWORD_MAP)) {
-    if (lowerText.includes(keyword.toLowerCase())) {
-      return code
-    }
+  const lower = text.toLowerCase()
+  for (const [kw, code] of Object.entries(KEYWORDS)) {
+    if (lower.includes(kw.toLowerCase())) return code
   }
  
   return null
 }
+ 
