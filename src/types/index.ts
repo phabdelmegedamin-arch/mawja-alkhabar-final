@@ -81,7 +81,9 @@ export interface NetworkImpactItem {
   timeframeLabel: string
   path:           string[]
   formula:        string
-  strength:       number
+  strength:        number
+  // اتجاه الانتشار في شبكة الملكية
+  propagationDir?: 'UPWARD' | 'DOWNWARD' | 'ORIGIN'
 }
  
 // بيانات الميتا لتحليل الشبكة
@@ -268,3 +270,4 @@ export interface LivePrice {
   ts:      number
 }
  
+
