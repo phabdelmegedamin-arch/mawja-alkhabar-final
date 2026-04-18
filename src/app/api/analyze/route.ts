@@ -1,6 +1,5 @@
 // ══════════════════════════════════════════════════════════════════
 // المسار: src/app/api/analyze/route.ts
-// الإصلاح: ربط محرك NLP بمحرك الشبكة — بدون استيراد NetworkAnalysisResult
 // ══════════════════════════════════════════════════════════════════
  
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,10 +7,31 @@ import { analyzeSentiment, detectSectors, buildRipples, buildTimeline } from '@/
 import {
   calculateNewsImpact,
   extractOriginStockFromText,
+  classifyNews,
 } from '@/lib/news-impact-engine'
 import type { AnalyzeRequest, ApiResponse, AnalysisResult } from '@/types'
  
 export const runtime = 'edge'
+ 
+// ── جدول baseImpact من نوع الخبر — مستقل عن NLP ─────────────────
+// هذا هو الإصلاح الجوهري:
+// baseImpact لا يُحسب من sentiment.score (الذي يعطي 0 للأخبار المحايدة)
+// بل يُحسب من classifyNews الذي يقرأ نوع الخبر وقوته الفعلية
+const NEWS_BASE_IMPACT: Record<string, number> = {
+  EARNINGS_BEAT:    8.0,   // أرباح أفضل من المتوقع → تأثير قوي إيجابي
+  EARNINGS_MISS:   -7.0,   // أرباح أقل → تأثير سلبي
+  DIVIDEND:         5.0,   // توزيعات → إيجابي متوسط
+  OWNERSHIP_CHANGE: 9.0,   // استحواذ/اندماج → تأثير قوي جداً
+  MAJOR_CONTRACT:   7.0,   // عقد حكومي ضخم → إيجابي
+  OIL_UP:           6.0,   // ارتفاع النفط → إيجابي للطاقة
+  OIL_DOWN:        -5.0,   // انخفاض النفط → سلبي
+  OPEC_CUT:         4.0,   // قرار أوبك → إيجابي معتدل
+  RATE_HIKE:        3.0,   // رفع الفائدة → إيجابي للبنوك
+  RATE_CUT:         3.0,   // خفض الفائدة → إيجابي للعقار
+  GUIDANCE_UP:      6.0,   // رفع التوقعات → إيجابي
+  REGULATORY:       4.0,   // قرار تنظيمي → إيجابي معتدل
+  GENERAL:          2.0,   // خبر عام → تأثير بسيط
+}
  
 export async function POST(req: NextRequest) {
   try {
@@ -42,7 +62,6 @@ export async function POST(req: NextRequest) {
     // ── ٢. محرك الشبكة ─────────────────────────────────────────
     const originCode = extractOriginStockFromText(trimmed)
  
-    // نعرّف النوع محلياً بدل استيراده من @/types
     let networkResult: {
       meta: {
         requestId:     string
@@ -77,16 +96,34 @@ export async function POST(req: NextRequest) {
  
     if (originCode) {
       try {
-        // baseImpact من درجة المشاعر (النطاق: ±92 → ±10%)
-        const baseImpact = parseFloat((sentiment.score / 92 * 10).toFixed(2))
+        // ── الإصلاح الجوهري ──────────────────────────────────────
+        // ١. صنّف الخبر لمعرفة نوعه واتجاهه وقوته الفعلية
+        const classification = classifyNews(trimmed)
  
+        // ٢. خذ baseImpact من جدول NEWS_BASE_IMPACT حسب نوع الخبر
+        //    وليس من sentiment.score الذي يعطي 0 للأخبار الاقتصادية المحايدة
+        let baseImpact = NEWS_BASE_IMPACT[classification.type] ?? 2.0
+ 
+        // ٣. طبّق إشارة الاتجاه (إيجابي/سلبي) من تصنيف الخبر
+        if (classification.direction === 'NEGATIVE') {
+          baseImpact = -Math.abs(baseImpact)
+        } else if (classification.direction === 'POSITIVE') {
+          baseImpact = Math.abs(baseImpact)
+        } else {
+          // NEUTRAL: استخدم sentiment.score كـ fallback خفيف فقط
+          const sentimentBoost = parseFloat((sentiment.score / 92 * 2).toFixed(2))
+          baseImpact = sentimentBoost !== 0 ? sentimentBoost : baseImpact
+        }
+ 
+        // ٤. طبّق معامل المفاجأة من التصنيف
+        //    S يأتي من classifyNews تلقائياً داخل calculateNewsImpact
         const engineResult = calculateNewsImpact({
           originStockCode:    originCode,
           baseImpact,
           newsText:           trimmed,
           marketState:        'NEUTRAL',
           hoursElapsed:       0,
-          maxDepth:           3,
+          maxDepth:           parseInt(waves),
           minImpactThreshold: 0.05,
         })
  
@@ -155,7 +192,7 @@ export async function POST(req: NextRequest) {
   }
 }
  
-// ── Claude Insight ──────────────────────────────────────────────
+// ── Claude Insight ───────────────────────────────────────────────
 async function fetchClaudeInsight(
   text: string, primary: string, allSectors: string[],
   sentiment: { dir: string; score: number }, apiKey: string
@@ -164,23 +201,30 @@ async function fetchClaudeInsight(
     const { DB } = await import('@/data/market-db')
     const db = DB as Record<string, { label: string }>
     const pLabel   = db[primary]?.label ?? primary
-    const sLabels  = allSectors.slice(0,4).map(k => db[k]?.label).filter(Boolean).join('، ')
+    const sLabels  = allSectors.slice(0, 4).map(k => db[k]?.label).filter(Boolean).join('، ')
     const dirLabel = sentiment.dir === 'pos' ? 'إيجابي' : sentiment.dir === 'neg' ? 'سلبي' : 'محايد'
  
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      headers: {
+        'Content-Type':       'application/json',
+        'x-api-key':          apiKey,
+        'anthropic-version':  '2023-06-01',
+      },
       body: JSON.stringify({
         model:      process.env.NEXT_PUBLIC_CLAUDE_MODEL ?? 'claude-sonnet-4-6',
         max_tokens: 400,
-        messages: [{ role: 'user', content:
-          `أنت محلل مالي متخصص في السوق السعودي.\nالخبر: "${text}"\nالقطاع: ${pLabel}\nالمرتبطة: ${sLabels}\nالاتجاه: ${dirLabel}\n\nاكتب تحليلاً موجزاً (3 جمل) يشمل التأثير الفوري والأسهم وتوصية. ابدأ مباشرة.`
+        messages: [{
+          role:    'user',
+          content: `أنت محلل مالي متخصص في السوق السعودي.\nالخبر: "${text}"\nالقطاع: ${pLabel}\nالمرتبطة: ${sLabels}\nالاتجاه: ${dirLabel}\n\nاكتب تحليلاً موجزاً (3 جمل) يشمل التأثير الفوري والأسهم وتوصية. ابدأ مباشرة.`,
         }],
       }),
     })
     if (!res.ok) return undefined
     const data = await res.json()
     return data.content?.[0]?.text ?? undefined
-  } catch { return undefined }
+  } catch {
+    return undefined
+  }
 }
  
