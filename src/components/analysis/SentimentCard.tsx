@@ -8,22 +8,21 @@ interface Props { result: AnalysisResult }
 
 export default function SentimentCard({ result }: Props) {
   const { sentiment, primary, allSectors, stocks } = result
-  const abs     = Math.abs(sentiment.score)
-  const dir     = sentiment.dir
-  const color   = sentimentColor(dir)
+  const abs   = Math.abs(sentiment.score)
+  const dir   = sentiment.dir
+  const color = sentimentColor(dir)
   const [displayScore, setDisplayScore] = useState(0)
 
-  // Animated counter
   useEffect(() => {
     setDisplayScore(0)
-    const step  = Math.ceil(abs / 18)
+    const step  = Math.ceil(abs / 20)
     const timer = setInterval(() => {
       setDisplayScore(prev => {
         const next = prev + step
         if (next >= abs) { clearInterval(timer); return abs }
         return next
       })
-    }, 30)
+    }, 28)
     return () => clearInterval(timer)
   }, [abs])
 
@@ -32,84 +31,104 @@ export default function SentimentCard({ result }: Props) {
     .map(k => (DB as Record<string, { label: string }>)[k]?.label)
     .filter(Boolean)
 
-  const intensity = abs > 60 ? 'عالية ●●●●○' : abs > 35 ? 'متوسطة ●●●○○' : 'منخفضة ●●○○○'
+  const intensity = abs > 60 ? 'عالية' : abs > 35 ? 'متوسطة' : 'منخفضة'
+  const intensityDots = abs > 60 ? '●●●●○' : abs > 35 ? '●●●○○' : '●●○○○'
+
+  const fillColor = dir === 'pos'
+    ? 'var(--gr)'
+    : dir === 'neg'
+    ? 'var(--rd)'
+    : 'var(--yl)'
 
   return (
     <div className="card p-4">
-      <div className="flex items-start justify-between mb-4">
-        <h3 className="text-sm font-bold text-tx-2">تصنيف الخبر</h3>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+        }}
+      >
+        <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--t2)' }}>
+          تصنيف الخبر
+        </span>
         <span className={cn(
-          'tag text-xs',
+          'tag',
           dir === 'pos' ? 'tag-pos' : dir === 'neg' ? 'tag-neg' : 'tag-neu'
         )}>
           {sentimentLabel(dir)}
         </span>
       </div>
 
-      {/* Big Score */}
-      <div className="flex items-end gap-3 mb-4">
-        <div
-          className="text-5xl font-black font-mono leading-none"
-          style={{ color }}
+      {/* Score */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
+        <span
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '48px',
+            fontWeight: 300,
+            lineHeight: 1,
+            letterSpacing: '-0.04em',
+            color,
+          }}
         >
-          {dir === 'pos' ? '+' : dir === 'neg' ? '-' : ''}{displayScore}
-        </div>
-        <div className="pb-1 text-tx-3 text-xs">/ 92</div>
+          {dir === 'pos' ? '+' : dir === 'neg' ? '−' : ''}{displayScore}
+        </span>
+        <span style={{ fontSize: '12px', color: 'var(--t3)', paddingBottom: '4px' }}>
+          / 92
+        </span>
       </div>
 
-      {/* Score bar */}
-      <div className="score-bar mb-4">
+      {/* Bar */}
+      <div className="score-bar" style={{ marginBottom: '16px' }}>
         <div
-          className="score-bar-fill animate-bar-fill"
-          style={{
-            width:      `${abs}%`,
-            background: dir === 'pos'
-              ? 'linear-gradient(90deg,#00D47A,#00C8F0)'
-              : dir === 'neg'
-              ? 'linear-gradient(90deg,#FF3355,#FF7040)'
-              : 'linear-gradient(90deg,#F0C93A,#FF7040)',
-          }}
+          className="score-bar-fill"
+          style={{ width: `${abs}%`, background: fillColor, opacity: 0.85 }}
         />
       </div>
 
       {/* Keywords */}
       {(sentiment.pos_words.length > 0 || sentiment.neg_words.length > 0) && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '16px' }}>
           {sentiment.pos_words.map(w => (
-            <span key={w} className="tag tag-pos text-2xs">{w}</span>
+            <span key={w} className="tag tag-pos" style={{ fontSize: '11px' }}>{w}</span>
           ))}
           {sentiment.neg_words.map(w => (
-            <span key={w} className="tag tag-neg text-2xs">{w}</span>
+            <span key={w} className="tag tag-neg" style={{ fontSize: '11px' }}>{w}</span>
           ))}
         </div>
       )}
 
-      <div className="border-t border-b-1 pt-3 space-y-2">
-        {/* Primary sector */}
-        <div className="flex justify-between text-xs">
-          <span className="text-tx-3">القطاع الرئيسي</span>
-          <span className="text-tx font-medium">{pData?.label}</span>
-        </div>
-        {/* Related sectors */}
-        <div className="flex justify-between text-xs">
-          <span className="text-tx-3">قطاعات مرتبطة</span>
-          <span className="text-tx">{related.length} قطاع</span>
-        </div>
-        {/* Impact */}
-        <div className="flex justify-between text-xs">
-          <span className="text-tx-3">حدة التأثير</span>
-          <span style={{ color }} className="font-medium">{intensity}</span>
-        </div>
-        {/* Speed */}
-        <div className="flex justify-between text-xs">
-          <span className="text-tx-3">سرعة الانتشار</span>
-          <span className="text-tx">{abs > 55 ? 'سريعة' : 'متوسطة'}</span>
-        </div>
-        {/* Stocks count */}
-        <div className="flex justify-between text-xs">
-          <span className="text-tx-3">الأسهم المتأثرة</span>
-          <span className="text-ac font-mono font-bold">{stocks.length} سهم</span>
-        </div>
+      {/* Stats */}
+      <div style={{ borderTop: '1px solid var(--b1)', paddingTop: '12px' }}>
+        {[
+          { label: 'القطاع الرئيسي',  value: pData?.label,      color: undefined },
+          { label: 'قطاعات مرتبطة',   value: `${related.length} قطاع`, color: undefined },
+          { label: 'حدة التأثير',     value: `${intensity} ${intensityDots}`, color },
+          { label: 'سرعة الانتشار',   value: abs > 55 ? 'سريعة' : 'متوسطة', color: undefined },
+          { label: 'الأسهم المتأثرة', value: `${stocks.length} سهم`, color: 'var(--ac)' },
+        ].map(row => (
+          <div
+            key={row.label}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '7px 0',
+              borderBottom: '1px solid var(--b1)',
+              fontSize: '12px',
+            }}
+          >
+            <span style={{ color: 'var(--t3)' }}>{row.label}</span>
+            <span
+              style={{
+                fontWeight: 500,
+                fontFamily: row.label === 'الأسهم المتأثرة' ? 'var(--mono)' : undefined,
+                color: row.color ?? 'var(--tx)',
+              }}
+            >
+              {row.value}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )
