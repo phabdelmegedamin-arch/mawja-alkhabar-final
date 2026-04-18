@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
 
 interface Price { ticker: string; price: number; change: number }
 
@@ -24,35 +23,75 @@ export default function TickerBar() {
 
   if (!prices.length) {
     return (
-      <div className="h-8 bg-bg2 border-b border-b-1 flex items-center px-4">
-        <span className="text-2xs text-tx-3 font-mono">// أسعار مباشرة</span>
-        <span className="text-2xs text-tx-3 mr-4 animate-pulse">⏳ جارٍ التحميل...</span>
+      <div
+        style={{
+          height: '32px',
+          background: 'var(--bg2)',
+          borderBottom: '1px solid var(--b1)',
+          display: 'flex', alignItems: 'center',
+          paddingRight: '16px', gap: '10px',
+        }}
+      >
+        <span style={{ fontSize: '10px', color: 'var(--t3)', fontFamily: 'var(--mono)', letterSpacing: '0.06em' }}>
+          LIVE
+        </span>
+        <span style={{ fontSize: '11px', color: 'var(--t3)' }}>جارٍ التحميل...</span>
       </div>
     )
   }
 
-  const items = [...prices, ...prices] // duplicate for seamless loop
+  const items = [...prices, ...prices]
 
   return (
-    <div className="h-8 bg-bg2 border-b border-b-1 overflow-hidden flex items-center">
-      <div className="shrink-0 px-3 text-2xs text-tx-3 font-mono border-l border-b-1">
-        // أسعار
+    <div
+      style={{
+        height: '32px',
+        background: 'var(--bg2)',
+        borderBottom: '1px solid var(--b1)',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+      }}
+    >
+      {/* Label */}
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '0 12px',
+          borderLeft: '1px solid var(--b1)',
+          fontSize: '10px',
+          fontFamily: 'var(--mono)',
+          fontWeight: 500,
+          letterSpacing: '0.06em',
+          color: 'var(--t3)',
+        }}
+      >
+        LIVE
       </div>
-      <div className="flex-1 overflow-hidden">
-        <div className="flex animate-ticker whitespace-nowrap">
+
+      {/* Scroll */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div className="animate-ticker" style={{ display: 'flex', width: 'max-content' }}>
           {items.map((p, i) => {
             const isPos = p.change > 0
             const isNeg = p.change < 0
             return (
               <span key={i} className="ticker-item">
-                <span className="text-tx-2 font-mono text-2xs">{p.ticker}</span>
-                <span className="font-mono text-2xs">{p.price.toFixed(2)}</span>
-                <span className={cn(
-                  'font-mono text-2xs font-bold',
-                  isPos ? 'text-gr' : isNeg ? 'text-rd' : 'text-tx-2'
-                )}>
-                  {isPos ? '▲' : isNeg ? '▼' : '◆'}
-                  {Math.abs(p.change)}%
+                <span style={{ color: 'var(--t2)', fontFamily: 'var(--mono)', fontSize: '11px' }}>
+                  {p.ticker}
+                </span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: 'var(--tx)' }}>
+                  {p.price.toFixed(2)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    color: isPos ? 'var(--gr)' : isNeg ? 'var(--rd)' : 'var(--t2)',
+                  }}
+                >
+                  {isPos ? '▲' : isNeg ? '▼' : '◆'}{Math.abs(p.change)}%
                 </span>
               </span>
             )
