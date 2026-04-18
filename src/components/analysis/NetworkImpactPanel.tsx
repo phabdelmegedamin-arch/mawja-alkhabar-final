@@ -1,7 +1,6 @@
 'use client'
 // ══════════════════════════════════════════════════════════════════
 // المسار: src/components/analysis/NetworkImpactPanel.tsx
-// التحديث: عرض اتجاه الانتشار (صعوداً / نزولاً) بوضوح
 // ══════════════════════════════════════════════════════════════════
 
 import { useState } from 'react'
@@ -26,7 +25,6 @@ const LAYER_LABELS: Record<number, string> = {
   4: 'تأثير قطاعي',
 }
 
-// ✅ جديد: تسميات اتجاه الانتشار
 const DIR_CONFIG = {
   UPWARD:   { icon: '↑', label: 'المالك يتأثر',  color: '#FF6B35', bg: 'rgba(255,107,53,0.1)',  desc: 'خسارة المملوك تنعكس على NAV المالك' },
   DOWNWARD: { icon: '↓', label: 'المملوك يتأثر', color: '#9B6EFF', bg: 'rgba(155,110,255,0.1)', desc: 'قرار المالك قد يؤثر على المملوك' },
@@ -39,6 +37,50 @@ const RELATION_ICONS: Record<string, string> = {
   INDIRECT:    '⛓️',
   OPERATIONAL: '🔧',
   SENTIMENT:   '📡',
+}
+
+// ── بطاقة السهم الأصلي — تعرض الاتجاه والنسبة بوضوح ─────────────
+function OriginCard({ item }: { item: NetworkImpactItem }) {
+  const isPos    = item.impactPct > 0
+  const isNeg    = item.impactPct < 0
+  const dirLabel = isPos ? 'إيجابي ▲' : isNeg ? 'سلبي ▼' : 'محايد ●'
+  const dirColor = isPos ? '#00D47A' : isNeg ? '#FF4757' : '#F5A623'
+  const dirBg    = isPos ? 'rgba(0,212,122,0.12)' : isNeg ? 'rgba(255,71,87,0.12)' : 'rgba(245,166,35,0.12)'
+
+  return (
+    <div style={{
+      padding: '14px 16px',
+      borderRadius: '10px',
+      background: 'rgba(0,229,255,0.06)',
+      border: '1px solid rgba(0,229,255,0.3)',
+      marginBottom: '16px',
+    }}>
+      <div style={{ fontSize: '0.7rem', color: 'var(--t2)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span>📌</span><span>السهم الأصلي — صاحب الخبر</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--tx)' }}>{item.stockName}</span>
+          <span style={{
+            fontFamily: 'monospace', fontSize: '0.78rem', fontWeight: 700,
+            color: 'var(--ac)', background: 'rgba(0,229,255,0.1)',
+            padding: '2px 8px', borderRadius: '4px',
+          }}>{item.stockCode}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--t2)' }}>{item.sector}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: dirColor, fontFamily: 'monospace' }}>
+            {isPos ? '+' : ''}{item.impactPct.toFixed(2)}%
+          </span>
+          <span style={{
+            fontSize: '0.82rem', fontWeight: 700, color: dirColor,
+            background: dirBg, padding: '4px 12px', borderRadius: '20px',
+          }}>{dirLabel}</span>
+        </div>
+      </div>
+      <div style={{ fontSize: '0.68rem', color: 'var(--t2)', marginTop: '6px' }}>⏱ {item.timeframeLabel}</div>
+    </div>
+  )
 }
 
 function ImpactBar({ value, max }: { value: number; max: number }) {
@@ -75,10 +117,9 @@ function PathBadge({ path }: { path: string[] }) {
   )
 }
 
-// ✅ جديد: مجموعة الأسهم حسب الاتجاه
-function PropagationGroup({
-  title, items, maxAbs, expanded, onToggle,
-  dirKey,
+// ── مجموعة موجة واحدة ────────────────────────────────────────────
+function WaveGroup({
+  title, items, maxAbs, expanded, onToggle, dirKey,
 }: {
   title:    string
   items:    NetworkImpactItem[]
@@ -92,7 +133,6 @@ function PropagationGroup({
 
   return (
     <div style={{ marginBottom: '12px' }}>
-      {/* Group header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '8px',
         padding: '6px 10px', borderRadius: '6px',
@@ -112,7 +152,6 @@ function PropagationGroup({
         </span>
       </div>
 
-      {/* Items */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         {items.map(item => {
           const isExp      = expanded === item.stockCode
@@ -224,22 +263,31 @@ export default function NetworkImpactPanel({ result }: Props) {
 
   const { meta, impacts, warnings } = networkResult
 
-  // ✅ تقسيم النتائج حسب اتجاه الانتشار
-  const originItem   = impacts.filter(i => (i as any).propagationDir === 'ORIGIN')
-  const upwardItems  = impacts.filter(i => (i as any).propagationDir === 'UPWARD')
+  // ── السهم الأصلي ─────────────────────────────────────────────
+  const originItem    = impacts.find(i => (i as any).propagationDir === 'ORIGIN')
+  const upwardItems   = impacts.filter(i => (i as any).propagationDir === 'UPWARD')
   const downwardItems = impacts.filter(i => (i as any).propagationDir === 'DOWNWARD')
-  // fallback: إذا لم يوجد propagationDir (نسخة قديمة)
-  const unknownItems  = impacts.filter(i => !(i as any).propagationDir || (i as any).propagationDir === 'ORIGIN').filter(i => i.rank > 1)
+  const unknownItems  = impacts.filter(i =>
+    !(i as any).propagationDir || (i as any).propagationDir === 'ORIGIN'
+  ).filter(i => i.rank > 1)
 
   const maxAbs = Math.max(...impacts.map(i => Math.abs(i.impactPct)), 0.01)
 
   const toggleExpanded = (code: string) =>
     setExpanded(prev => prev === code ? null : code)
 
+  // فلتر التحذيرات — يُخفي S/M/T، يُظهر فقط ما يهم المستخدم
+  const visibleWarnings = warnings.filter(w =>
+    !w.includes('S تم') &&
+    !w.includes('M = 1.0') &&
+    !w.includes('T = 1.0') &&
+    !w.includes('تصنيف الخبر غير مؤكد')
+  )
+
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--b1)', borderRadius: '12px', padding: '16px' }}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--tx)' }}>
@@ -262,43 +310,12 @@ export default function NetworkImpactPanel({ result }: Props) {
         </div>
       </div>
 
-      {/* Origin Stock */}
-      <div style={{
-        padding: '8px 12px', marginBottom: '14px',
-        background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.2)',
-        borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <div style={{ fontSize: '0.78rem', color: 'var(--t2)' }}>مصدر الخبر</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '0.78rem', color: 'var(--tx)' }}>{meta.originStock.name}</span>
-          <span style={{
-            fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700, color: 'var(--ac)',
-            background: 'rgba(0,229,255,0.1)', padding: '2px 8px', borderRadius: '4px',
-          }}>
-            {meta.originStock.code}
-          </span>
-        </div>
-      </div>
+      {/* ── السهم الأصلي — بطاقة كبيرة مميزة ── */}
+      {originItem && <OriginCard item={originItem as any} />}
 
-      {/* Parameters */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px', fontSize: '0.7rem', color: 'var(--t2)' }}>
-        {[
-          { k: 'S', v: meta.parameters.S },
-          { k: 'M', v: meta.parameters.M },
-          { k: 'T', v: meta.parameters.T },
-        ].map(p => (
-          <span key={p.k} style={{ padding: '2px 6px', borderRadius: '4px', background: 'var(--bg3)', fontFamily: 'monospace' }}>
-            {p.k} = <span style={{ color: 'var(--ac)', fontWeight: 700 }}>{p.v}</span>
-          </span>
-        ))}
-        <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'var(--bg3)' }}>
-          {meta.parameters.marketState}
-        </span>
-      </div>
-
-      {/* ✅ UPWARD group — الأسهم التي تأثر بها المالكون */}
+      {/* ── UPWARD: الأسهم التي يتأثر بها المالكون ── */}
       {upwardItems.length > 0 && (
-        <PropagationGroup
+        <WaveGroup
           title="المالكون المتأثرون — تأثير صاعد"
           items={upwardItems}
           maxAbs={maxAbs}
@@ -308,9 +325,9 @@ export default function NetworkImpactPanel({ result }: Props) {
         />
       )}
 
-      {/* ✅ DOWNWARD group — الأسهم التي تأثر بها المملوكون */}
+      {/* ── DOWNWARD: الأسهم التي يتأثر بها المملوكون ── */}
       {downwardItems.length > 0 && (
-        <PropagationGroup
+        <WaveGroup
           title="المملوكون المتأثرون — تأثير نازل"
           items={downwardItems}
           maxAbs={maxAbs}
@@ -320,7 +337,7 @@ export default function NetworkImpactPanel({ result }: Props) {
         />
       )}
 
-      {/* Fallback للنسخ القديمة */}
+      {/* ── Fallback للنسخ القديمة ── */}
       {unknownItems.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {unknownItems.map(item => (
@@ -340,18 +357,18 @@ export default function NetworkImpactPanel({ result }: Props) {
         </div>
       )}
 
-      {/* Warnings */}
-      {warnings.length > 0 && (
+      {/* ── Warnings — S/M/T مخفية، يظهر فقط ما يهم المستخدم ── */}
+      {visibleWarnings.length > 0 && (
         <div style={{
           marginTop: '10px', padding: '8px 10px',
           background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)',
           borderRadius: '6px', fontSize: '0.7rem', color: '#F5A623',
         }}>
-          {warnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}
+          {visibleWarnings.map((w, i) => <div key={i}>⚠️ {w}</div>)}
         </div>
       )}
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <div style={{
         marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--b1)',
         display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--t2)',
