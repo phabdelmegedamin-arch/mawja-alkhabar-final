@@ -59,10 +59,9 @@ export interface RippleNode {
 }
  
 export interface SectorDetectResult {
-  primary:       SectorKey
-  allSectors:    SectorKey[]
-  scores:        Record<string, number>
-  detectedCode?: string | null   // السهم الرئيسي المكتشف من النص
+  primary:    SectorKey
+  allSectors: SectorKey[]
+  scores:     Record<string, number>
 }
  
 // ── Network Impact ────────────────────────────────
