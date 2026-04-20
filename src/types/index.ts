@@ -59,9 +59,10 @@ export interface RippleNode {
 }
  
 export interface SectorDetectResult {
-  primary:    SectorKey
-  allSectors: SectorKey[]
-  scores:     Record<string, number>
+  primary:       SectorKey
+  allSectors:    SectorKey[]
+  scores:        Record<string, number>
+  detectedCode?: string | null   // السهم الرئيسي المكتشف من النص
 }
  
 // ── Network Impact ────────────────────────────────
@@ -269,5 +270,3 @@ export interface LivePrice {
   spark?:  number[]
   ts:      number
 }
- 
-
