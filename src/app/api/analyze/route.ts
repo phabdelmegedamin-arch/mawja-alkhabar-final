@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
     const trimmed      = text.trim()
     const sentiment    = analyzeSentiment(trimmed)
     const sectorResult = detectSectors(trimmed)
-    const { primary, allSectors } = sectorResult
-    const ripples  = buildRipples(primary, allSectors, sentiment, waves)
+    const { primary, allSectors, detectedCode: sectorDetectedCode } = sectorResult
+    const ripples  = buildRipples(primary, allSectors, sentiment, waves, sectorDetectedCode)
     const timeline = buildTimeline(sentiment)
  
     // ── ١. Claude Insight (اختياري) ────────────────────────────
@@ -60,7 +60,9 @@ export async function POST(req: NextRequest) {
     }
  
     // ── ٢. محرك الشبكة ─────────────────────────────────────────
-    const originCode = extractOriginStockFromText(trimmed)
+    // نستخدم الكود المكتشف من detectSectors (مع NER المُحسَّن)
+    // مع fallback لـ extractOriginStockFromText للتوافق
+    const originCode = sectorDetectedCode ?? extractOriginStockFromText(trimmed)
  
     let networkResult: {
       meta: {
