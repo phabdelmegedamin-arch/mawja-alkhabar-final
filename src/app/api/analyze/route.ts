@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════
  
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeSentiment, detectSectors, buildRipples, buildTimeline } from '@/lib/nlp'
+import { analyzeSentiment, detectSectors, buildRipples, buildTimeline, detectPrimaryStockFromText } from '@/lib/nlp'
 import {
   calculateNewsImpact,
   extractOriginStockFromText,
@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
     const trimmed      = text.trim()
     const sentiment    = analyzeSentiment(trimmed)
     const sectorResult = detectSectors(trimmed)
-    const { primary, allSectors, detectedCode: sectorDetectedCode } = sectorResult
+    const { primary, allSectors } = sectorResult
+    const sectorDetectedCode = detectPrimaryStockFromText(trimmed)
     const ripples  = buildRipples(primary, allSectors, sentiment, waves, sectorDetectedCode)
     const timeline = buildTimeline(sentiment)
  
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     // ── ٢. محرك الشبكة ─────────────────────────────────────────
     // نستخدم الكود المكتشف من detectSectors (مع NER المُحسَّن)
     // مع fallback لـ extractOriginStockFromText للتوافق
-    const originCode = sectorDetectedCode ?? extractOriginStockFromText(trimmed)
+    const originCode = sectorDetectedCode ?? extractOriginStockFromText(trimmed)  // NER من nlp أولاً
  
     let networkResult: {
       meta: {
