@@ -205,7 +205,7 @@ export function detectSectors(text: string): SectorDetectResult {
   const relKeys  = DB[primary]?.ripple.w2.concat(DB[primary]?.ripple.w3 ?? []) ?? []
   const allSectors = Array.from(new Set([primary, ...sorted.slice(1), ...relKeys])) as SectorKey[]
  
-  return { primary, allSectors, scores, detectedCode }
+  return { primary, allSectors, scores }
 }
  
 // ── بناء موجات التأثير ─────────────────────────────
