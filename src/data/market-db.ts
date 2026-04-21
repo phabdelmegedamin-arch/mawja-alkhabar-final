@@ -1,4 +1,4 @@
-import type { SectorData } from '@/types'
+mport type { SectorData } from '@/types'
  
 // ══════════════════════════════════════════════════
 // موجة الخبر — قاعدة بيانات القطاعات والأسهم
@@ -114,7 +114,7 @@ export const DB: Record<string, SectorData> = {
       {t:'1150',n:'الإنماء',s:'تاسي',w:76},
       {t:'1180',n:'الأهلي',s:'تاسي',w:73},
     ],
-    ripple:{w2:['realestate','finservices','capital_goods'],w3:['energy','telecom','insurance']}
+    ripple:{w2:['finservices','insurance','reits'],w3:['realestate','energy','telecom']}
   },
   realestate:{
     label:'إدارة وتطوير العقارات', icon:'🏗️',
@@ -211,7 +211,7 @@ export const DB: Record<string, SectorData> = {
       {t:'8311',n:'عناية',s:'تاسي',w:76},
       {t:'8313',n:'رسن',s:'تاسي',w:75},
     ],
-    ripple:{w2:['banking','healthcare','transport'],w3:['realestate','consumer_retail','energy']}
+    ripple:{w2:['banking','healthcare','transport'],w3:['finservices','consumer_retail','realestate']}
   },
   food:{
     label:'إنتاج الأغذية', icon:'🌾',
@@ -344,7 +344,7 @@ export const DB: Record<string, SectorData> = {
       {t:'9584',n:'ريال',s:'نمو',w:80},
       {t:'9653',n:'خالد ظافر وإخوانة',s:'نمو',w:70},
     ],
-    ripple:{w2:['energy','consumer_retail','food'],w3:['banking','realestate','capital_goods']}
+    ripple:{w2:['energy','consumer_retail','food'],w3:['banking','capital_goods','utilities']}
   },
   utilities:{
     label:'المرافق العامة', icon:'⚡',
@@ -418,7 +418,7 @@ export const DB: Record<string, SectorData> = {
       {t:'4083',n:'تسهيل',s:'تاسي',w:82},
       {t:'4084',n:'دراية',s:'تاسي',w:79},
       {t:'4130',n:'درب السعودية',s:'تاسي',w:76},
-      {t:'4280',n:'المملكة',s:'تاسي',w:73},
+      {t:'4280',n:'المملكة القابضة',s:'تاسي',w:92},
       // نمو
       {t:'9585',n:'ملكية',s:'نمو',w:100},
       {t:'9586',n:'أصول وبخيت',s:'نمو',w:98},
@@ -435,7 +435,7 @@ export const DB: Record<string, SectorData> = {
       {t:'9614',n:'نقاوة',s:'نمو',w:76},
       {t:'9637',n:'الحلول المتسارعة',s:'نمو',w:74},
     ],
-    ripple:{w2:['banking','reits','realestate'],w3:['insurance','telecom','energy']}
+    ripple:{w2:['banking','reits','realestate'],w3:['insurance','capital_goods','tech']}
   },
   consumer_retail:{
     label:'تجزئة السلع الاستهلاكية', icon:'🛒',
@@ -454,7 +454,7 @@ export const DB: Record<string, SectorData> = {
       {t:'9549',n:'البابطين الغذائية',s:'نمو',w:100},
       // moved to healthcare
     ],
-    ripple:{w2:['food','transport','banking'],w3:['materials','realestate','energy']}
+    ripple:{w2:['food','transport','banking'],w3:['luxury_retail','household','consumer_services']}
   },
   luxury_retail:{
     label:'تجزئة السلع الكمالية', icon:'🛍️',
@@ -480,11 +480,11 @@ export const DB: Record<string, SectorData> = {
       {t:'9649',n:'جمجوم فاشن',s:'نمو',w:76},
       {t:'9651',n:'التويجري',s:'نمو',w:70},
     ],
-    ripple:{w2:['consumer_services','banking','transport'],w3:['realestate','media','finservices']}
+    ripple:{w2:['consumer_retail','durables','consumer_services'],w3:['banking','transport','media']}
   },
   consumer_services:{
     label:'الخدمات الاستهلاكية', icon:'🎯',
-    kw:['خدمات استهلاكية','ترفيه','سياحة','ضيافة','فنادق','مطاعم','أمريكانا','برغر','جاهز','ريدان','مطعم','رياضة','تعليم','تدريب'],
+    kw:['خدمات استهلاكية','ترفيه','سياحة','ضيافة','فنادق','مطاعم','أمريكانا','برغر','جاهز','ريدان','مطعم','رياضة','تعليم','تدريب','نادي','فريق','استثمار رياضي','كرة القدم','الهلال','النصر','ملعب'],
     stocks:[
       // تاسي
       {t:'1810',n:'سيرا',s:'تاسي',w:100},
@@ -517,7 +517,7 @@ export const DB: Record<string, SectorData> = {
       {t:'9632',n:'رؤية المستقبل',s:'نمو',w:80},
       {t:'9636',n:'الخزامى',s:'نمو',w:78},
     ],
-    ripple:{w2:['transport','consumer_retail','media'],w3:['banking','realestate','telecom']}
+    ripple:{w2:['media','realestate','consumer_retail'],w3:['banking','transport','telecom']}
   },
   business_services:{
     label:'الخدمات التجارية والمهنية', icon:'💼',
@@ -548,7 +548,7 @@ export const DB: Record<string, SectorData> = {
   },
   media:{
     label:'الإعلام والترفيه', icon:'📺',
-    kw:['إعلام','تلفزيون','صحافة','راديو','ترفيه','محتوى','بث','منصات'],
+    kw:['إعلام','تلفزيون','صحافة','راديو','ترفيه','محتوى','بث','منصات','MBC','تهامة','إعلانات','رياضة إعلام'],
     stocks:[
       // تاسي
       {t:'4070',n:'تهامة',s:'تاسي',w:100},
@@ -563,7 +563,7 @@ export const DB: Record<string, SectorData> = {
   },
   pharma:{
     label:'الأدوية', icon:'💊',
-    kw:['دواء','أدوية','صيدليات','تصنيع دوائي','عقاقير'],
+    kw:['دواء','أدوية','صيدليات','تصنيع دوائي','عقاقير','لقاح','مستحضرات','الدوائية','جمجوم فارما','أفالون'],
     stocks:[
       // تاسي
       {t:'2070',n:'الدوائية',s:'تاسي',w:100},
@@ -574,7 +574,7 @@ export const DB: Record<string, SectorData> = {
   },
   durables:{
     label:'السلع طويلة الأجل', icon:'🛋️',
-    kw:['أجهزة','سيارات','إلكترونيات','معمرة','أثاث','منزل'],
+    kw:['أجهزة','سيارات','إلكترونيات','معمرة','أثاث','منزل','شاشات','تلفزيون','غسالة','ثلاجة','أجهزة منزلية'],
     stocks:[
       // تاسي
       {t:'1213',n:'نسيج',s:'تاسي',w:100},
@@ -590,7 +590,7 @@ export const DB: Record<string, SectorData> = {
   },
   household:{
     label:'المنتجات المنزلية والشخصية', icon:'🏠',
-    kw:['منتجات منزلية','تنظيف','عناية شخصية','منظفات'],
+    kw:['منتجات منزلية','تنظيف','عناية شخصية','منظفات','عود','عطور','بخور','الماجد','توزيع أرباح المنتجات','دخون'],
     stocks:[
       // تاسي
       {t:'4165',n:'الماجد للعود',s:'تاسي',w:100},
@@ -599,7 +599,7 @@ export const DB: Record<string, SectorData> = {
       {t:'9579',n:'البخور الذكي',s:'نمو',w:85},
       {t:'9635',n:'دخون',s:'نمو',w:70},
     ],
-    ripple:{w2:['consumer_retail','food','materials'],w3:['banking','transport','realestate']}
+    ripple:{w2:['luxury_retail','durables','consumer_retail'],w3:['banking','food','materials']}
   },
 }
  
@@ -638,3 +638,4 @@ export const SECTOR_ORDER = [
  
 // ── سهم مجاني (بدون اشتراك) ──────────────────
 export const FREE_TICKERS = ['2222'] as const
+ 
