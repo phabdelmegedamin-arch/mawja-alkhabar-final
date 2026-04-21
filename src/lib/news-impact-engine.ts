@@ -134,6 +134,41 @@ const CLASSIFY_RULES: Array<{
   { pattern: /توقعات.{0,20}(أرباح|نمو|ارتفاع).{0,20}(\d+\.?\d*%)/i,   type: 'GUIDANCE_UP',      s: 1.4, dir: 'POSITIVE' },
   // القيمة السوقية تنخفض
   { pattern: /(تراجع|انخفض|هبط).{0,20}(القيمة السوقية|الرسملة)/i,      type: 'EARNINGS_MISS',    s: 1.5, dir: 'NEGATIVE' },
+  // ── توزيع أرباح صريح (الماجد 4 ريال، الراجحي 1.75 ريال) ──────────
+  { pattern: /(توزيع|يوزع|وزّع).{0,30}(ريال|هللة).{0,10}(للسهم|لكل)/i, type: 'DIVIDEND',         s: 1.8, dir: 'POSITIVE' },
+  { pattern: /\d+\.?\d*\s*(ريال|هللة).{0,15}(للسهم|لكل سهم)/i,          type: 'DIVIDEND',         s: 1.6, dir: 'POSITIVE' },
+  { pattern: /(إعلان|أعلن).{0,20}(توزيع|أرباح نقدية)/i,                  type: 'DIVIDEND',         s: 1.5, dir: 'POSITIVE' },
+  // ── أرباح بمبلغ محدد (بنساب 3 مليار) ─────────────────────────────
+  { pattern: /(حقق|حققت|سجل|سجلت).{0,20}(مليار|مليون).{0,10}(ريال|أرباح)/i, type: 'EARNINGS_BEAT', s: 1.7, dir: 'POSITIVE' },
+  { pattern: /(أرباح|ربح).{0,10}(صافية?|صافٍ).{0,20}(مليار|مليون)/i,    type: 'EARNINGS_BEAT',    s: 1.8, dir: 'POSITIVE' },
+  { pattern: /\d+\.?\d*\s*مليار.{0,20}(أرباح|ريال)/i,                    type: 'EARNINGS_BEAT',    s: 1.6, dir: 'POSITIVE' },
+  // ── زيادة رأس المال ────────────────────────────────────────────────
+  { pattern: /(زيادة|رفع).{0,10}رأس.{0,5}المال/i,                        type: 'OWNERSHIP_CHANGE', s: 2.0, dir: 'POSITIVE' },
+  { pattern: /\d+\s*%.{0,15}(زيادة|رفع).{0,15}رأس المال/i,               type: 'OWNERSHIP_CHANGE', s: 2.2, dir: 'POSITIVE' },
+  { pattern: /(أسهم مجانية|توزيع أسهم).{0,20}(مساهمين|حاملي)/i,          type: 'DIVIDEND',         s: 1.8, dir: 'POSITIVE' },
+  // ── استحواذ رياضي / ترفيهي ────────────────────────────────────────
+  { pattern: /(استحواذ|شراء|تملّك|تملك).{0,30}(نادي|فريق|رياضي|كرة)/i,   type: 'OWNERSHIP_CHANGE', s: 2.0, dir: 'POSITIVE' },
+  { pattern: /(نادي الهلال|الهلال|النصر|الاتحاد|الأهلي).{0,20}(أسهم|حصة)/i, type: 'OWNERSHIP_CHANGE', s: 2.0, dir: 'POSITIVE' },
+  // ── توزيعات — كل الصيغ ────────────────────────────────────────────
+  { pattern: /توزيع.{0,20}(ريال|هللة)/i,                                   type: 'DIVIDEND',         s: 1.8, dir: 'POSITIVE' },
+  { pattern: /توزيعات.{0,15}(نقدية|ربح|أرباح)/i,                           type: 'DIVIDEND',         s: 1.7, dir: 'POSITIVE' },
+  { pattern: /(أسهم مجانية|منح أسهم|توزيع أسهم)/i,                         type: 'DIVIDEND',         s: 1.8, dir: 'POSITIVE' },
+  { pattern: /(إعلان|أعلن|يعلن).{0,20}(توزيع|أرباح نقدية)/i,               type: 'DIVIDEND',         s: 1.6, dir: 'POSITIVE' },
+  // ── أرباح بمبلغ — كل الصيغ ────────────────────────────────────────
+  { pattern: /(حقق|حققت|سجل|سجلت).{0,30}(مليار|مليون)/i,                   type: 'EARNINGS_BEAT',    s: 1.7, dir: 'POSITIVE' },
+  { pattern: /(الأرباح الصافية|صافي الأرباح|أرباح صافية).{0,20}(مليار|مليون|ارتفع|نما)/i, type: 'EARNINGS_BEAT', s: 1.8, dir: 'POSITIVE' },
+  { pattern: /ربح.{0,5}(للسهم|السهم).{0,20}(ارتفع|زاد|نما)/i,              type: 'EARNINGS_BEAT',    s: 1.7, dir: 'POSITIVE' },
+  { pattern: /(فاقت|تجاوزت).{0,20}(الأرباح|التوقعات)/i,                    type: 'EARNINGS_BEAT',    s: 2.0, dir: 'POSITIVE' },
+  // ── زيادة رأس المال — كل الصيغ ────────────────────────────────────
+  { pattern: /زيادة.{0,5}رأس.{0,5}(المال|مالها|مالهم)/i,                   type: 'OWNERSHIP_CHANGE', s: 2.0, dir: 'POSITIVE' },
+  { pattern: /رفع.{0,5}رأس.{0,5}(المال|مالها)/i,                           type: 'OWNERSHIP_CHANGE', s: 2.0, dir: 'POSITIVE' },
+  // ── عقود وترسية ────────────────────────────────────────────────────
+  { pattern: /(ترسية|ترسو|تُرسَى).{0,20}(مشروع|عقد)/i,                    type: 'MAJOR_CONTRACT',   s: 2.0, dir: 'POSITIVE' },
+  { pattern: /عقد.{0,10}بـ?.{0,5}(مليار|مليون)/i,                         type: 'MAJOR_CONTRACT',   s: 1.8, dir: 'POSITIVE' },
+  // ── سلبيات إضافية ──────────────────────────────────────────────────
+  { pattern: /(خسارة|خسائر).{0,20}(مليار|مليون|صافية)/i,                   type: 'EARNINGS_MISS',    s: 2.0, dir: 'NEGATIVE' },
+  { pattern: /(أرباح|ربح).{0,10}(تراجع|انخفض|هبط|تقلص)/i,                 type: 'EARNINGS_MISS',    s: 1.7, dir: 'NEGATIVE' },
+  { pattern: /(دون|أقل من).{0,10}(التوقعات|المتوقع|المستهدف)/i,            type: 'EARNINGS_MISS',    s: 1.6, dir: 'NEGATIVE' },
 ]
  
 export function classifyNews(newsText: string): NewsClassification {
@@ -510,4 +545,3 @@ export function extractOriginStockFromText(text: string): string | null {
  
   return null
 }
- 
