@@ -1,4 +1,4 @@
-mport type { SectorData } from '@/types'
+import type { SectorData } from '@/types'
  
 // ══════════════════════════════════════════════════
 // موجة الخبر — قاعدة بيانات القطاعات والأسهم
@@ -230,7 +230,6 @@ export const DB: Record<string, SectorData> = {
       {t:'2286',n:'المطاحن الرابعة',s:'تاسي',w:91},
       {t:'2287',n:'إنتاج',s:'تاسي',w:90},
       {t:'2288',n:'نفوذ',s:'تاسي',w:89},
-      // moved to finservices — سناد القابضة
       {t:'6001',n:'حلواني إخوان',s:'تاسي',w:87},
       {t:'6010',n:'نادك',s:'تاسي',w:86},
       {t:'6020',n:'جاكو',s:'تاسي',w:85},
@@ -259,7 +258,6 @@ export const DB: Record<string, SectorData> = {
     stocks:[
       // تاسي
       {t:'2140',n:'أيان',s:'تاسي',w:100},
-      // moved to materials — الكيميائية السعودية
       {t:'4002',n:'المواساة',s:'تاسي',w:96},
       {t:'4004',n:'دله الصحية',s:'تاسي',w:94},
       {t:'4005',n:'رعاية',s:'تاسي',w:92},
@@ -377,7 +375,6 @@ export const DB: Record<string, SectorData> = {
       {t:'2320',n:'البابطين',s:'تاسي',w:93},
       {t:'2370',n:'مسك',s:'تاسي',w:92},
       {t:'4140',n:'باتك',s:'تاسي',w:91},
-      // صادرات: كود غير مؤكد — أُزيل لتجنب التكرار
       {t:'4141',n:'العمران',s:'تاسي',w:89},
       {t:'4142',n:'كابلات الرياض',s:'تاسي',w:88},
       {t:'4144',n:'رؤوم',s:'تاسي',w:87},
@@ -387,7 +384,6 @@ export const DB: Record<string, SectorData> = {
       {t:'4148',n:'الوسائل الصناعية',s:'تاسي',w:83},
       // نمو
       {t:'9510',n:'الوطنية للبناء والتسويق',s:'نمو',w:100},
-      // moved to tech — المركز الالي
       {t:'9542',n:'كير',s:'نمو',w:96},
       {t:'9547',n:'رواسي',s:'نمو',w:94},
       {t:'9560',n:'وجا',s:'نمو',w:92},
@@ -424,13 +420,9 @@ export const DB: Record<string, SectorData> = {
       {t:'9586',n:'أصول وبخيت',s:'نمو',w:98},
       {t:'9596',n:'كوارا',s:'نمو',w:96},
       {t:'9602',n:'يقين',s:'نمو',w:94},
-      // moved to tech — ايكتك
-      // moved to tech — نسيج للتقنية
-      // moved to tech — نت وركرس
       {t:'9550',n:'شور',s:'نمو',w:86},
       {t:'9557',n:'ادارات',s:'نمو',w:84},
       {t:'9558',n:'القمم',s:'نمو',w:82},
-      // moved to tech — نولجنت
       {t:'9595',n:'وسم',s:'نمو',w:78},
       {t:'9614',n:'نقاوة',s:'نمو',w:76},
       {t:'9637',n:'الحلول المتسارعة',s:'نمو',w:74},
@@ -452,7 +444,6 @@ export const DB: Record<string, SectorData> = {
       {t:'4164',n:'النهدي',s:'تاسي',w:72},
       // نمو
       {t:'9549',n:'البابطين الغذائية',s:'نمو',w:100},
-      // moved to healthcare
     ],
     ripple:{w2:['food','transport','banking'],w3:['luxury_retail','household','consumer_services']}
   },
@@ -603,9 +594,6 @@ export const DB: Record<string, SectorData> = {
   },
 }
  
-// ══════════════════════════════════════════════════
-// علاقات القطاعات
-// ══════════════════════════════════════════════════
  
 export const RELS: Record<string, Record<string, number>> = {
   energy:{transport:0.9,materials:0.8,utilities:0.7,banking:0.5,food:0.4,capital_goods:0.6},
@@ -636,6 +624,5 @@ export const SECTOR_ORDER = [
   'energy','materials','banking','realestate','reits','insurance','food','healthcare','telecom','tech','transport','utilities','capital_goods','finservices','consumer_retail','luxury_retail','consumer_services','business_services','media','pharma','durables','household',
 ] as const
  
-// ── سهم مجاني (بدون اشتراك) ──────────────────
 export const FREE_TICKERS = ['2222'] as const
  
