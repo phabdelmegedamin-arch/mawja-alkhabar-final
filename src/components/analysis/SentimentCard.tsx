@@ -74,7 +74,14 @@ export default function SentimentCard({ result }: Props) {
         >
           {dir === 'pos' ? '+' : dir === 'neg' ? '−' : ''}{displayScore}
         </span>
-        <span style={{ fontSize: '12px', color: 'var(--t3)', paddingBottom: '4px' }}>
+        {/* إصلاح #7: شرح الرقم 92 بـ tooltip */}
+        <span
+          title="الدرجة من 92 — مجموع الحد الأقصى لأوزان قاموس المشاعر"
+          style={{
+            fontSize: '12px', color: 'var(--t3)', paddingBottom: '4px',
+            cursor: 'help', borderBottom: '1px dashed var(--t3)',
+          }}
+        >
           / 92
         </span>
       </div>
