@@ -477,4 +477,3 @@ export function buildTimeline(sentiment: SentimentResult) {
     { l: 'T+1m', v: +(-sign * abs * 0.05).toFixed(1) },
   ]
 }
- 
