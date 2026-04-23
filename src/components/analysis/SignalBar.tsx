@@ -57,7 +57,10 @@ export default function SignalBar({ result }: Props) {
           {topStocks.map(s => {
             const pv  = parseFloat(s.pct ?? '0')
             const inW = has(s.t ?? '')
-            const pColor = pv > 0 ? 'var(--gr)' : pv < 0 ? 'var(--rd)' : 'var(--t2)'
+            // إصلاح #8: ألوان رمادية عند الخبر المحايد — لا تُظهر أخضر مضلل
+            const pColor = dir === 'neu'
+              ? 'var(--t2)'
+              : pv > 0 ? 'var(--gr)' : pv < 0 ? 'var(--rd)' : 'var(--t2)'
             return (
               <div key={s.t} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-bg3 border border-b-2 text-xs">
                 <span className="font-mono font-bold text-ac">{s.t}</span>
