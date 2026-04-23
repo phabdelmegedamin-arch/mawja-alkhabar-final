@@ -100,6 +100,10 @@ const CLASSIFY_RULES: Array<{
   s:       number
   dir:     'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'
 }> = [
+  // ── أولوية قصوى: حقق/سجل + خسارة/خسائر → سلبي دائماً ──────────────
+  { pattern: /(حقق|حققت|سجل|سجلت|تحقق|يحقق).{0,30}(خسارة|خسائر)/i,     type: 'EARNINGS_MISS',    s: 2.5, dir: 'NEGATIVE' },
+  { pattern: /(حقق|حققت|سجل|سجلت).{0,20}(خسارة|خسائر).{0,20}(مليار|مليون)/i, type: 'EARNINGS_MISS', s: 2.8, dir: 'NEGATIVE' },
+  // ───────────────────────────────────────────────────────────────────────
   { pattern: /أرباح.{0,20}(فاق|تجاوز|أفضل|ارتفع|نما|قفز|قياسي)/i,    type: 'EARNINGS_BEAT',    s: 1.8, dir: 'POSITIVE' },
   { pattern: /أرباح.{0,20}(دون|تراجع|انخفض|خسارة|هبط|أقل من)/i,      type: 'EARNINGS_MISS',    s: 1.8, dir: 'NEGATIVE' },
   { pattern: /خسارة.{0,30}(مليار|مليون|صافية|فادحة)/i,                 type: 'EARNINGS_MISS',    s: 2.0, dir: 'NEGATIVE' },
@@ -155,8 +159,8 @@ const CLASSIFY_RULES: Array<{
   { pattern: /(أسهم مجانية|منح أسهم|توزيع أسهم)/i,                         type: 'DIVIDEND',         s: 1.8, dir: 'POSITIVE' },
   { pattern: /(إعلان|أعلن|يعلن).{0,20}(توزيع|أرباح نقدية)/i,               type: 'DIVIDEND',         s: 1.6, dir: 'POSITIVE' },
   // ── أرباح بمبلغ — كل الصيغ ────────────────────────────────────────
-  { pattern: /(حقق|حققت|سجل|سجلت).{0,30}(مليار|مليون)/i,                   type: 'EARNINGS_BEAT',    s: 1.7, dir: 'POSITIVE' },
-  { pattern: /(الأرباح الصافية|صافي الأرباح|أرباح صافية).{0,20}(مليار|مليون|ارتفع|نما)/i, type: 'EARNINGS_BEAT', s: 1.8, dir: 'POSITIVE' },
+  { pattern: /(حقق|حققت|سجل|سجلت)(?!.*(?:خسارة|خسائر)).{0,30}(مليار|مليون)/i, type: 'EARNINGS_BEAT', s: 1.7, dir: 'POSITIVE' },
+  { pattern: /(الأرباح الصافية|صافي الأرباح|أرباح صافية)(?!.*(?:تراجع|انخفض|خسارة)).{0,20}(مليار|مليون|ارتفع|نما)/i, type: 'EARNINGS_BEAT', s: 1.8, dir: 'POSITIVE' },
   { pattern: /ربح.{0,5}(للسهم|السهم).{0,20}(ارتفع|زاد|نما)/i,              type: 'EARNINGS_BEAT',    s: 1.7, dir: 'POSITIVE' },
   { pattern: /(فاقت|تجاوزت).{0,20}(الأرباح|التوقعات)/i,                    type: 'EARNINGS_BEAT',    s: 2.0, dir: 'POSITIVE' },
   // ── زيادة رأس المال — كل الصيغ ────────────────────────────────────
@@ -546,4 +550,3 @@ export function extractOriginStockFromText(text: string): string | null {
  
   return null
 }
- 
