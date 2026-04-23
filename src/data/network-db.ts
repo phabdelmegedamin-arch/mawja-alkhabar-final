@@ -236,7 +236,6 @@ export const STOCK_INFO: Record<string, { name: string; sector: string; market: 
   '6060': { name:'الشرقية للتنمية',        sector:'إنتاج الأغذية',             market:'TASI', liquidity:0.8 },
   '6070': { name:'الجوف الزراعية',         sector:'إنتاج الأغذية',             market:'TASI', liquidity:0.8 },
  
-  '3008': { name:'الكثيري', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
   // ── أسهم مُضافة من ملف الأسهم الرسمي (إصلاح شامل لـ STOCK_INFO) ──
   '4030': { name:'البحري', sector:'الطاقة', market:'TASI', liquidity:1.0 },
   '1201': { name:'تكوين', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
@@ -262,7 +261,7 @@ export const STOCK_INFO: Record<string, { name: string; sector: string; market: 
   '3004': { name:'أسمنت الشمالية', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
   '3005': { name:'أسمنت ام القرى', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
   '3007': { name:'الواحة', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
-  '3007': { name:'الكثيري', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
+  '3008': { name:'الكثيري', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
   '3040': { name:'أسمنت القصيم', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
   '3050': { name:'أسمنت الجنوب', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
   '3060': { name:'أسمنت ينبع', sector:'المواد الأساسية', market:'TASI', liquidity:1.0 },
@@ -281,7 +280,6 @@ export const STOCK_INFO: Record<string, { name: string; sector: string; market: 
   '2320': { name:'البابطين', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
   '2370': { name:'مسك', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
   '4140': { name:'باتك', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
-  '4140': { name:'صادرات', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
   '4141': { name:'العمران', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
   '4142': { name:'كابلات الرياض', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
   '4144': { name:'رؤوم', sector:'السلع الرأسمالية', market:'TASI', liquidity:0.9 },
@@ -593,4 +591,3 @@ export function getNewsType(typeId: string): NewsType {
 export function getSectorImpact(fromSector: string, toSector: string): number {
   return (SECTOR_MATRIX[fromSector]?.[toSector] ?? 0) / 10
 }
- 
