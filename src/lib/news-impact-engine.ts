@@ -263,6 +263,7 @@ export function calculateNewsImpact(params: NewsImpactParams): NewsImpactRespons
     effectiveBase = Math.abs(baseImpact)
   }
  
+ 
   // ── التحذيرات ─────────────────────────────────────────────────
   const warnings: string[] = []
   if (!inputS)                         warnings.push('S تم تقديره تلقائياً من نص الخبر')
@@ -545,3 +546,4 @@ export function extractOriginStockFromText(text: string): string | null {
  
   return null
 }
+ 
