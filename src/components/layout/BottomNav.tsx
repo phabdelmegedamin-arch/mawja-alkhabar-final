@@ -3,17 +3,16 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useWatchlistStore } from '@/store/watchlist'
 import { useAnalysisStore } from '@/store/analysis'
-import { cn } from '@/lib/utils'
 
 /* ═══════════════════════════════════════════════
-   4 تبويبات فقط — مطابقة للـ Header
-   التحليل / السجل / المتابعة / الأسعار
+   5 تبويبات للموبايل — مزامنة مع الـ Header
    ═══════════════════════════════════════════════ */
 const NAV_ITEMS = [
   { href: '/',           icon: '◉', label: 'التحليل'   },
   { href: '/history',    icon: '☰', label: 'السجل'     },
   { href: '/watchlist',  icon: '☆', label: 'المتابعة'  },
   { href: '/prices',     icon: '◈', label: 'الأسعار'   },
+  { href: '/support',    icon: '?', label: 'الدعم'     },
 ]
 
 export default function BottomNav() {
@@ -22,10 +21,13 @@ export default function BottomNav() {
   const histCount   = useAnalysisStore(s => s.history.length)
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden
-                    bg-bg2 border-t border-b-1
-                    flex items-stretch
-                    pb-safe">
+    <nav
+      className="fixed bottom-0 inset-x-0 z-40 md:hidden flex items-stretch pb-safe"
+      style={{
+        background: 'var(--cream-soft)',
+        borderTop: '1px solid var(--rule)',
+      }}
+    >
       {NAV_ITEMS.map(({ href, icon, label }) => {
         const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
         const badge  = href === '/watchlist' ? watchCount
@@ -35,29 +37,45 @@ export default function BottomNav() {
           <Link
             key={href}
             href={href}
-            className={cn(
-              'flex-1 flex flex-col items-center justify-center gap-0.5',
-              'pt-2 pb-1 text-xs transition-colors duration-200',
-              active ? 'text-tx' : 'text-tx-3 hover:text-tx-2'
-            )}
+            className="flex-1 flex flex-col items-center justify-center transition-colors"
+            style={{
+              gap: '2px',
+              padding: '8px 4px 6px',
+              fontSize: '11px',
+              color: active ? 'var(--ink)' : 'var(--muted)',
+            }}
           >
             <div className="relative">
-              <span
-                className="text-lg leading-none"
-                style={{ opacity: active ? 1 : 0.6 }}
-              >
+              <span style={{ fontSize: '18px', lineHeight: 1, opacity: active ? 1 : 0.6 }}>
                 {icon}
               </span>
               {badge > 0 && (
-                <span className="absolute -top-1 -right-1.5
-                                 min-w-4 h-4 px-0.5 rounded-full
-                                 bg-ac text-bg text-[9px] font-black
-                                 flex items-center justify-center">
+                <span
+                  className="absolute"
+                  style={{
+                    top: '-4px',
+                    right: '-6px',
+                    minWidth: '14px',
+                    height: '14px',
+                    padding: '0 3px',
+                    borderRadius: '50%',
+                    background: 'var(--amber)',
+                    color: 'var(--ink)',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   {badge > 99 ? '99+' : badge}
                 </span>
               )}
             </div>
-            <span className={cn('font-medium text-[11px]', active && 'font-semibold')}>
+            <span style={{
+              fontWeight: active ? 600 : 500,
+              fontSize: '11px',
+            }}>
               {label}
             </span>
           </Link>
