@@ -1,122 +1,249 @@
 'use client'
-// ══════════════════════════════════════════════════════════════════
-// المسار: src/app/(main)/page.tsx
-// الإصلاح: إضافة NetworkImpactPanel لعرض نتائج شبكة الملكية
-// ══════════════════════════════════════════════════════════════════
-
-import { useCallback } from 'react'
-import NewsInput          from '@/components/analysis/NewsInput'
-import SentimentCard      from '@/components/analysis/SentimentCard'
-import RippleWaves        from '@/components/analysis/RippleWaves'
-import SignalBar          from '@/components/analysis/SignalBar'
+import { useEffect } from 'react'
+import NewsInput from '@/components/analysis/NewsInput'
+import SentimentCard from '@/components/analysis/SentimentCard'
 import NetworkImpactPanel from '@/components/analysis/NetworkImpactPanel'
-import AutoFeed           from '@/components/AutoFeed'
+import AutoFeed from '@/components/AutoFeed'
 import { useAnalysisStore } from '@/store/analysis'
 
 export default function HomePage() {
-  const { result, isLoading, error } = useAnalysisStore()
+  const { result, error, isLoading, setInput, inputText } = useAnalysisStore()
 
-  const handleSelectNews = useCallback((text: string) => {
-    window.dispatchEvent(new CustomEvent('mw:select-news', { detail: { text } }))
+  // عند اختيار خبر من feed — نضعه في حقل الإدخال فقط
+  const handleSelectNews = (text: string) => {
+    setInput(text)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+  }
 
   return (
-    <div className="space-y-4">
+    <div
+      className="min-h-screen"
+      style={{ background: 'var(--bg)' }}
+    >
+      <div className="max-w-[1280px] mx-auto px-3 sm:px-6 py-4 sm:py-6">
 
-      {/* ── Input ── */}
-      <NewsInput />
+        {/* ═══ Session bar ═══ */}
+        <SessionBar />
 
-      {/* ── Error ── */}
-      {error && (
-        <div className="card p-3 border-rd bg-rd2 text-rd text-sm">
-          ⚠️ {error}
-        </div>
-      )}
+        {/* ═══ Main area: Input (right) + Result (left) ═══ */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6 mt-4">
+          {/* Input side */}
+          <div className="lg:col-span-2">
+            <NewsInput />
 
-      {/* ── Empty state ── */}
-      {!result && !isLoading && (
-        <div className="card p-12 text-center">
-          <div className="text-5xl mb-4">📡</div>
-          <div className="text-lg font-bold text-tx-2 mb-2">جاهز للتحليل</div>
-          <div className="text-sm text-tx-3 max-w-md mx-auto">
-            أدخل أي خبر اقتصادي وسيحدد النظام القطاعات المتأثرة
-            ويبني سلسلة موجات تتابعية كاملة للأسهم السعودية
+            {/* Error display */}
+            {error && !isLoading && (
+              <div
+                className="mt-3 p-3 rounded text-[12px]"
+                style={{
+                  background: 'var(--rd2)',
+                  color:      'var(--rd)',
+                  border:     '1px solid rgba(198, 57, 57, 0.2)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Result side */}
+          <div className="lg:col-span-3">
+            {isLoading ? (
+              <LoadingCard />
+            ) : result ? (
+              <SentimentCard result={result} />
+            ) : (
+              <EmptyResultCard />
+            )}
           </div>
         </div>
-      )}
 
-      {/* ── Results ── */}
-      {result && (
-        <>
-          <SignalBar result={result} />
-
-          {result.insight && (
-            <div className="card p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-ac text-sm font-bold">⚡ تحليل الذكاء الاصطناعي</span>
-                <span className="tag tag-ac text-2xs">Claude</span>
-              </div>
-              <p className="text-sm text-tx-2 leading-relaxed">{result.insight}</p>
-            </div>
-          )}
-
-          {/* ── شبكة الملكية — البطاقة الأهم، تظهر أولاً ── */}
-          <NetworkImpactPanel result={result} />
-
-          <div className="grid md:grid-cols-3 gap-4">
-            <SentimentCard result={result} />
-            <RippleWaves   result={result} />
-            <div className="card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-tx-2">الأسهم المتأثرة (NLP)</h3>
-                <span className="tag tag-ac text-2xs">{result.stocks.length} سهم</span>
-              </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {result.stocks.map((s, i) => {
-                  const pv    = parseFloat(s.pct ?? '0')
-                  const color = pv > 0 ? 'var(--gr)' : pv < 0 ? 'var(--rd)' : 'var(--t2)'
-                  return (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-b-1 last:border-0">
-                      <div>
-                        <span className="font-mono text-ac text-xs font-bold">{s.t}</span>
-                        <span className="text-tx-2 text-xs mr-2">{s.n}</span>
-                      </div>
-                      <span className="font-mono text-sm font-bold" style={{ color }}>{s.pct}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+        {/* ═══ Accordions (Ownership + 3 Waves) — show only if result ═══ */}
+        {result && !isLoading && (
+          <div className="mb-6 animate-slide-up">
+            <NetworkImpactPanel result={result} />
           </div>
+        )}
 
-          <div className="card p-4">
-            <h3 className="text-sm font-bold text-tx-2 mb-3">التوقع الزمني للتأثير</h3>
-            <div className="flex items-end gap-2 overflow-x-auto pb-2">
-              {result.timeline.map((pt, i) => {
-                const color = pt.v > 0 ? 'var(--gr)' : pt.v < 0 ? 'var(--rd)' : 'var(--yl)'
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1 min-w-[60px]">
-                    <span className="font-mono text-xs font-bold" style={{ color }}>
-                      {pt.v > 0 ? '+' : ''}{pt.v}%
-                    </span>
-                    <div className="w-full h-1.5 bg-bg3 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full"
-                        style={{ width: `${Math.abs(pt.v) / 50 * 100}%`, background: color }} />
-                    </div>
-                    <span className="text-2xs text-tx-3 font-mono">{pt.l}</span>
-                    {pt.active && <div className="w-1.5 h-1.5 rounded-full bg-ac" />}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
+        {/* ═══ Auto news feed ═══ */}
+        <div className="mb-6">
+          <AutoFeed onSelectNews={handleSelectNews} />
+        </div>
 
-      {/* ── أخبار السوق — دائماً في الأسفل ── */}
-      <AutoFeed onSelectNews={handleSelectNews} />
+      </div>
+    </div>
+  )
+}
 
+/* ─────────────────────────────────────────
+   Session bar — analytics today + timestamp
+─────────────────────────────────────────── */
+function SessionBar() {
+  const { history } = useAnalysisStore()
+
+  // عدد تحليلات اليوم
+  const today = new Date().toISOString().slice(0, 10)
+  const todayCount = history.filter(h => h.ts?.slice(0, 10) === today).length
+
+  // متوسط الثقة آخر 7 أيام
+  const weekAgo = Date.now() - 7 * 86400_000
+  const recent  = history.filter(h => new Date(h.ts).getTime() > weekAgo)
+  const avgConf = recent.length > 0
+    ? Math.round(recent.reduce((s, h) => s + (h.confidence ?? 0), 0) / recent.length)
+    : 0
+
+  const now = new Date()
+  const time = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+
+  return (
+    <div
+      className="flex items-center gap-4 sm:gap-6 py-2.5 px-3 sm:px-4 rounded text-[11px] flex-wrap"
+      style={{
+        background:    'var(--bg2)',
+        border:        '1px solid var(--b1)',
+        color:         'var(--t2)',
+      }}
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="live-dot" />
+        <span
+          className="uppercase tracking-[0.12em] font-medium"
+          style={{ color: 'var(--t2)', fontFamily: 'var(--sans-lat)' }}
+        >
+          جلسة نشطة
+        </span>
+      </div>
+
+      <Divider />
+
+      <div className="flex items-center gap-1.5">
+        <span style={{ color: 'var(--t3)' }}>قياسات اليوم</span>
+        <span className="mono-num font-semibold" style={{ color: 'var(--tx)' }}>
+          {todayCount}
+        </span>
+      </div>
+
+      <Divider />
+
+      <div className="flex items-center gap-1.5">
+        <span style={{ color: 'var(--t3)' }}>دقة الأسبوع</span>
+        <span className="mono-num font-semibold" style={{ color: avgConf > 0 ? 'var(--ac)' : 'var(--t3)' }}>
+          {avgConf > 0 ? `${avgConf}%` : '—'}
+        </span>
+      </div>
+
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-1.5 mono-num" style={{ color: 'var(--t3)' }}>
+        <span>{time}</span>
+        <span>·</span>
+        <span>الرياض</span>
+      </div>
+    </div>
+  )
+}
+
+function Divider() {
+  return (
+    <div
+      className="w-px h-3"
+      style={{ background: 'var(--b1)' }}
+    />
+  )
+}
+
+/* ─────────────────────────────────────────
+   Empty state — before any analysis
+─────────────────────────────────────────── */
+function EmptyResultCard() {
+  return (
+    <div
+      className="flex flex-col items-center justify-center text-center p-8 h-full min-h-[380px]"
+      style={{
+        background:   '#0F0F0F',
+        color:        'rgba(244, 239, 230, 0.56)',
+        borderRadius: 'var(--r-xl)',
+      }}
+    >
+      <div
+        className="mb-5"
+        style={{ color: 'rgba(244, 239, 230, 0.20)' }}
+      >
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <circle cx="14" cy="28" r="3" fill="#C79012" />
+          <path d="M 22 28 Q 28 20, 34 28 T 46 28"
+                stroke="rgba(244,239,230,0.3)" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M 22 28 Q 28 22, 34 28 T 46 28"
+                stroke="rgba(244,239,230,0.5)" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M 22 28 Q 28 24, 34 28 T 46 28"
+                stroke="rgba(244,239,230,0.85)" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+        </svg>
+      </div>
+
+      <div
+        className="text-[11px] uppercase tracking-[0.2em] mb-2"
+        style={{ color: '#F5B71C', fontFamily: 'var(--sans-lat)' }}
+      >
+        جاهز للقياس
+      </div>
+
+      <h3
+        className="text-[18px] font-medium mb-2"
+        style={{ color: '#F4EFE6' }}
+      >
+        أدخل خبراً لقياس اتجاهه
+      </h3>
+
+      <p className="text-[12.5px] max-w-xs leading-relaxed mb-6">
+        ستظهر هنا: الاتجاه العام، القطاع الرئيسي، سرعة الانتشار، وعدد الأسهم المتأثرة
+      </p>
+
+      <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.15em]"
+           style={{ color: 'rgba(244,239,230,0.35)', fontFamily: 'var(--sans-lat)' }}>
+        <span>← قياس فوري</span>
+        <span>·</span>
+        <span>شبكة ملكية</span>
+        <span>·</span>
+        <span>3 موجات</span>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────
+   Loading state
+─────────────────────────────────────────── */
+function LoadingCard() {
+  return (
+    <div
+      className="flex flex-col items-center justify-center p-8 h-full min-h-[380px]"
+      style={{
+        background:   '#0F0F0F',
+        borderRadius: 'var(--r-xl)',
+      }}
+    >
+      <div
+        className="mb-5 animate-spin"
+        style={{
+          width:   32,
+          height:  32,
+          border:  '2px solid rgba(244,239,230,0.12)',
+          borderTopColor: '#F5B71C',
+          borderRadius:   '50%',
+        }}
+      />
+      <div
+        className="text-[11px] uppercase tracking-[0.2em]"
+        style={{ color: '#F5B71C', fontFamily: 'var(--sans-lat)' }}
+      >
+        جارٍ القياس…
+      </div>
+      <div
+        className="text-[11px] mt-1.5"
+        style={{ color: 'rgba(244,239,230,0.40)' }}
+      >
+        تحليل + شبكة ملكية + 3 موجات
+      </div>
     </div>
   )
 }
