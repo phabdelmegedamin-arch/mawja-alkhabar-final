@@ -1,31 +1,32 @@
 'use client'
 
 /* ═══════════════════════════════════════════════
-   صفحة الأسعار — Placeholder فارغ
-   لم يتم الربط بعد بمصدر البيانات الحي
-   لكنها تمنع ظهور 404 عند الضغط على تبويب "الأسعار"
+   صفحة الأسعار — Placeholder فارغ مؤقت
    ═══════════════════════════════════════════════ */
 export default function PricesPage() {
   return (
     <div
-      className="min-h-[calc(100vh-200px)] flex items-center justify-center"
-      style={{ background: 'var(--bg)' }}
+      className="flex items-center justify-center"
+      style={{
+        minHeight: 'calc(100vh - 250px)',
+        background: 'var(--cream)',
+      }}
     >
-      <div className="text-center" style={{ color: 'var(--t3)' }}>
-        <div
-          className="text-[11px] uppercase mb-3"
-          style={{
-            letterSpacing: '0.2em',
-            fontFamily: 'var(--sans-lat)',
-            color: 'var(--t3)',
-          }}
-        >
+      <div className="text-center">
+        <div style={{
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.2em',
+          marginBottom: '12px',
+          color: 'var(--muted)',
+          fontFamily: 'var(--sans-lat)',
+        }}>
           PRICES
         </div>
-        <div className="text-[16px]" style={{ color: 'var(--t2)' }}>
+        <div style={{ fontSize: '18px', color: 'var(--ink-soft)', marginBottom: '6px' }}>
           الأسعار
         </div>
-        <div className="text-[12px] mt-2" style={{ color: 'var(--t3)' }}>
+        <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
           قيد التجهيز
         </div>
       </div>
