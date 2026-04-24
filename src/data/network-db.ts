@@ -176,6 +176,14 @@ export const SECTOR_MATRIX: Record<string, Record<string, number>> = {
 // ٤. معلومات الأسهم المختصرة للحسابات
 // ══════════════════════════════════════════════════════════════════
 export const STOCK_INFO: Record<string, { name: string; sector: string; market: string; liquidity: number }> = {
+  // ── ✅ إصلاح جوهري: الكيانات الحكومية (مالكون غير مدرجين) ─────────
+  // بدون هذه الإدخالات، محرك الشبكة يتخطى PIF/GOSI/GPFF
+  // عند بحث المالكين (owner_code === 'PIF') لأن STOCK_INFO['PIF'] = undefined
+  // وبالتالي تظهر شبكة الملكية فارغة للأسهم التي يملكها الصندوق السيادي
+  'PIF':  { name:'صندوق الاستثمارات العامة', sector:'حكومي سيادي',             market:'GOV',  liquidity:1.0 },
+  'GOSI': { name:'مؤسسة التأمينات الاجتماعية', sector:'حكومي سيادي',             market:'GOV',  liquidity:1.0 },
+  'GPFF': { name:'المؤسسة العامة للتقاعد',   sector:'حكومي سيادي',             market:'GOV',  liquidity:1.0 },
+ 
   '2222': { name:'أرامكو السعودية',        sector:'الطاقة',                    market:'TASI', liquidity:1.0 },
   '2010': { name:'سابك',                   sector:'المواد الأساسية',            market:'TASI', liquidity:1.0 },
   '2290': { name:'ينساب',                  sector:'المواد الأساسية',            market:'TASI', liquidity:0.9 },
