@@ -1,103 +1,126 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
- 
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap');
+
+/* ═════════════════════════════════════════════════════
+   موجة الخبر — هوية لونية فاخرة (كريمي + أمبر + فحمي)
+   ═════════════════════════════════════════════════════ */
+
 :root {
-  --bg:    #0c0e12;
-  --bg2:   #13161c;
-  --bg3:   #1a1e27;
-  --bg4:   #21263a;
-  --b1:    rgba(255,255,255,0.07);
-  --b2:    rgba(255,255,255,0.11);
-  --b3:    rgba(255,255,255,0.18);
-  --tx:    #e2e8f0;
-  --t2:    #7c8799;
-  --t3:    #3e4758;
-  --ac:    #3b82f6;
-  --ac2:   rgba(59,130,246,0.12);
-  --acl:   rgba(59,130,246,0.06);
-  --gr:    #22c55e;
-  --gr2:   rgba(34,197,94,0.10);
-  --rd:    #ef4444;
-  --rd2:   rgba(239,68,68,0.10);
-  --yl:    #f59e0b;
-  --yl2:   rgba(245,158,11,0.10);
-  --or:    #f97316;
-  --or2:   rgba(249,115,22,0.10);
-  --pu:    #8b5cf6;
-  --pu2:   rgba(139,92,246,0.10);
-  --mono:  'IBM Plex Mono', monospace;
-  --sans:  'IBM Plex Sans Arabic', sans-serif;
-  --r:     8px;
-  --r-lg:  12px;
+  /* ── الخلفيات (كريمي دافئ) ─────────── */
+  --bg:    #F4EFE6;   /* الخلفية الأساسية */
+  --bg2:   #EFE9DE;   /* البطاقات */
+  --bg3:   #E7DFCD;   /* الأعمق قليلاً — حقول الإدخال */
+  --bg4:   #DDD3BD;   /* الأعمق — التمييز */
+
+  /* ── الحدود ─────────────────────────── */
+  --b1:    rgba(15, 15, 15, 0.08);
+  --b2:    rgba(15, 15, 15, 0.14);
+  --b3:    rgba(15, 15, 15, 0.24);
+
+  /* ── النصوص ─────────────────────────── */
+  --tx:    #0F0F0F;   /* الأساسي */
+  --t2:    #5A544A;   /* ثانوي */
+  --t3:    #8B857A;   /* هادئ */
+
+  /* ── اللون الأساسي (أمبر) ─────────── */
+  --ac:    #C79012;   /* أمبر غامق — قراءة واضحة */
+  --ac2:   rgba(199, 144, 18, 0.12);
+  --acl:   rgba(199, 144, 18, 0.06);
+  --ac-bright: #F5B71C; /* أمبر لامع — للخلفيات الداكنة فقط */
+
+  /* ── إشارات السوق ─────────────────── */
+  --gr:    #1A8A4A;
+  --gr2:   rgba(26, 138, 74, 0.10);
+  --rd:    #C63939;
+  --rd2:   rgba(198, 57, 57, 0.10);
+  --yl:    #B8860B;
+  --yl2:   rgba(184, 134, 11, 0.10);
+  --or:    #B85C00;
+  --or2:   rgba(184, 92, 0, 0.10);
+  --pu:    #6B4F9B;
+  --pu2:   rgba(107, 79, 155, 0.10);
+
+  /* ── الخطوط ─────────────────────────── */
+  --mono:  'IBM Plex Mono', 'SF Mono', monospace;
+  --sans:  'IBM Plex Sans Arabic', -apple-system, sans-serif;
+  --sans-lat: 'IBM Plex Sans', -apple-system, sans-serif;
+
+  /* ── الأشكال ────────────────────────── */
+  --r:     4px;
+  --r-lg:  8px;
+  --r-xl:  12px;
 }
- 
+
+/* ── الثيم الفاتح (نفس الألوان لمنع التعارض) ─── */
 [data-theme="light"] {
-  --bg:    #f5f5f3;
-  --bg2:   #ffffff;
-  --bg3:   #f0f0ee;
-  --bg4:   #e8e8e5;
-  --b1:    rgba(0,0,0,0.07);
-  --b2:    rgba(0,0,0,0.12);
-  --b3:    rgba(0,0,0,0.20);
-  --tx:    #111318;
-  --t2:    #5a6070;
-  --t3:    #9ca3af;
-  --ac:    #1d4ed8;
-  --ac2:   rgba(29,78,216,0.10);
-  --acl:   rgba(29,78,216,0.05);
-  --gr:    #16a34a;
-  --gr2:   rgba(22,163,74,0.10);
-  --rd:    #dc2626;
-  --rd2:   rgba(220,38,38,0.10);
-  --yl:    #b45309;
-  --yl2:   rgba(180,83,9,0.10);
-  --or:    #c2410c;
-  --or2:   rgba(194,65,12,0.10);
-  --pu:    #7c3aed;
-  --pu2:   rgba(124,58,237,0.10);
+  --bg:    #F4EFE6;
+  --bg2:   #EFE9DE;
+  --bg3:   #E7DFCD;
+  --bg4:   #DDD3BD;
+  --b1:    rgba(15, 15, 15, 0.08);
+  --b2:    rgba(15, 15, 15, 0.14);
+  --b3:    rgba(15, 15, 15, 0.24);
+  --tx:    #0F0F0F;
+  --t2:    #5A544A;
+  --t3:    #8B857A;
+  --ac:    #C79012;
+  --ac2:   rgba(199, 144, 18, 0.12);
+  --acl:   rgba(199, 144, 18, 0.06);
+  --gr:    #1A8A4A;
+  --gr2:   rgba(26, 138, 74, 0.10);
+  --rd:    #C63939;
+  --rd2:   rgba(198, 57, 57, 0.10);
+  --yl:    #B8860B;
+  --yl2:   rgba(184, 134, 11, 0.10);
 }
- 
+
+/* ═════════════════════════════════════════════════════
+   Base styles
+   ═════════════════════════════════════════════════════ */
+
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
- 
+
   html {
     direction: rtl;
     font-family: var(--sans);
     font-size: 14px;
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    font-feature-settings: 'tnum' 1;
   }
- 
+
   body {
     background: var(--bg);
     color: var(--tx);
     min-height: 100dvh;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
     transition: background 0.25s, color 0.25s;
   }
- 
-  ::-webkit-scrollbar              { width: 4px; height: 4px; }
+
+  ::-webkit-scrollbar              { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track        { background: transparent; }
   ::-webkit-scrollbar-thumb        { background: var(--b2); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover  { background: var(--b3); }
- 
+
   ::selection { background: var(--ac2); color: var(--ac); }
- 
+
   a       { color: var(--ac); text-decoration: none; }
   a:hover { text-decoration: underline; }
- 
+
   h1, h2, h3, h4, h5, h6 {
     font-weight: 500;
     color: var(--tx);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
   }
- 
+
   input, textarea, select {
-    background: var(--bg3);
+    background: #FFFFFF;
     border: 1px solid var(--b2);
     color: var(--tx);
     border-radius: var(--r);
@@ -110,44 +133,48 @@
     border-color: var(--ac);
     box-shadow: 0 0 0 3px var(--ac2);
   }
- 
+
   button { cursor: pointer; font-family: var(--sans); }
 }
- 
+
+/* ═════════════════════════════════════════════════════
+   Components
+   ═════════════════════════════════════════════════════ */
+
 @layer components {
   .card {
-    background: var(--bg2);
+    background: #FFFFFF;
     border: 1px solid var(--b1);
-    border-radius: var(--r-lg);
+    border-radius: var(--r-xl);
   }
- 
+
   .panel { padding: 16px; }
- 
+
   .section-label {
     font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--t3);
-    font-family: var(--mono);
+    font-family: var(--sans-lat);
   }
- 
+
   .tag {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     padding: 3px 9px;
-    border-radius: 5px;
+    border-radius: var(--r);
     font-size: 11px;
     font-weight: 500;
     border: 1px solid transparent;
   }
-  .tag-pos  { background: var(--gr2); color: var(--gr); border-color: rgba(34,197,94,0.2); }
-  .tag-neg  { background: var(--rd2); color: var(--rd); border-color: rgba(239,68,68,0.2); }
-  .tag-neu  { background: var(--yl2); color: var(--yl); border-color: rgba(245,158,11,0.2); }
-  .tag-ac   { background: var(--ac2); color: var(--ac); border-color: rgba(59,130,246,0.2); }
-  .tag-pu   { background: var(--pu2); color: var(--pu); border-color: rgba(139,92,246,0.2); }
- 
+  .tag-pos  { background: var(--gr2); color: var(--gr); border-color: rgba(26,138,74,0.2); }
+  .tag-neg  { background: var(--rd2); color: var(--rd); border-color: rgba(198,57,57,0.2); }
+  .tag-neu  { background: var(--yl2); color: var(--yl); border-color: rgba(184,134,11,0.2); }
+  .tag-ac   { background: var(--ac2); color: var(--ac); border-color: rgba(199,144,18,0.25); }
+  .tag-pu   { background: var(--pu2); color: var(--pu); border-color: rgba(107,79,155,0.2); }
+
   .score-bar {
     height: 3px;
     border-radius: 2px;
@@ -159,13 +186,13 @@
     border-radius: 2px;
     transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
- 
+
   .shimmer {
     background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite linear;
   }
- 
+
   .live-dot {
     display: inline-block;
     width: 6px;
@@ -174,12 +201,12 @@
     background: var(--gr);
     animation: pulse-dot 2s ease-in-out infinite;
   }
- 
+
   .mono-num {
     font-family: var(--mono);
     font-variant-numeric: tabular-nums;
   }
- 
+
   .ticker-item {
     display: inline-flex;
     align-items: center;
@@ -189,11 +216,12 @@
     white-space: nowrap;
     border-left: 1px solid var(--b1);
   }
- 
-  .wave-1 { color: var(--ac);  border-color: var(--ac); }
-  .wave-2 { color: var(--or);  border-color: var(--or); }
-  .wave-3 { color: var(--gr);  border-color: var(--gr); }
- 
+
+  .wave-1 { color: var(--ac); border-color: var(--ac); }
+  .wave-2 { color: var(--or); border-color: var(--or); }
+  .wave-3 { color: var(--gr); border-color: var(--gr); }
+
+  /* جداول الأدمن */
   .adm-table {
     width: 100%;
     font-size: 13px;
@@ -215,49 +243,58 @@
     font-size: 13px;
   }
   .adm-table tr:hover td { background: var(--bg3); }
- 
+
+  /* utilities */
   .bg-bg  { background-color: var(--bg)  !important; }
   .bg-bg2 { background-color: var(--bg2) !important; }
   .bg-bg3 { background-color: var(--bg3) !important; }
   .bg-bg4 { background-color: var(--bg4) !important; }
- 
-  .text-tx   { color: var(--tx)  !important; }
-  .text-tx-2 { color: var(--t2)  !important; }
-  .text-tx-3 { color: var(--t3)  !important; }
-  .text-ac   { color: var(--ac)  !important; }
-  .text-gr   { color: var(--gr)  !important; }
-  .text-rd   { color: var(--rd)  !important; }
-  .text-yl   { color: var(--yl)  !important; }
- 
+
+  .text-tx   { color: var(--tx) !important; }
+  .text-tx-2 { color: var(--t2) !important; }
+  .text-tx-3 { color: var(--t3) !important; }
+  .text-ac   { color: var(--ac) !important; }
+  .text-gr   { color: var(--gr) !important; }
+  .text-rd   { color: var(--rd) !important; }
+  .text-yl   { color: var(--yl) !important; }
+
   .border-b-1 { border-color: var(--b1) !important; }
   .border-b-2 { border-color: var(--b2) !important; }
- 
+
   .text-2xs { font-size: 11px; }
 }
- 
+
+/* ═════════════════════════════════════════════════════
+   Utilities
+   ═════════════════════════════════════════════════════ */
+
 @layer utilities {
   .text-pos  { color: var(--gr) !important; }
   .text-neg  { color: var(--rd) !important; }
   .text-neu  { color: var(--yl) !important; }
   .text-mono { font-family: var(--mono); }
- 
+
   .bg-pos { background: var(--gr2); }
   .bg-neg { background: var(--rd2); }
   .bg-neu { background: var(--yl2); }
- 
+
   .border-pos { border-color: var(--gr); }
   .border-neg { border-color: var(--rd); }
   .border-neu { border-color: var(--yl); }
- 
+
   .rtl { direction: rtl; }
   .ltr { direction: ltr; }
- 
+
   .font-display { font-weight: 600; letter-spacing: -0.03em; }
- 
+
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   .pt-safe { padding-top:    env(safe-area-inset-top);    }
 }
- 
+
+/* ═════════════════════════════════════════════════════
+   Animations
+   ═════════════════════════════════════════════════════ */
+
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
@@ -281,12 +318,11 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
- 
+
 .animate-ticker   { animation: ticker-scroll 40s linear infinite; }
 .animate-slide-up { animation: slide-up 0.25s ease-out; }
 .animate-fade-in  { animation: fade-in 0.2s ease-out; }
- 
+
 @media (max-width: 768px) {
   .main-content { padding-bottom: 72px; }
 }
- 
