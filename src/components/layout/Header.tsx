@@ -111,7 +111,7 @@ export default function Header() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative text-[14px] transition-opacity hover:opacity-70"
+                className="relative text-[14px] transition-opacity hover:opacity-70 py-1"
                 style={{
                   color:      'var(--tx)',
                   fontWeight: active ? 500 : 400,
@@ -120,7 +120,7 @@ export default function Header() {
                 {item.label}
                 {active && (
                   <span
-                    className="absolute -bottom-[20px] right-0 left-0 h-[2px]"
+                    className="absolute -bottom-[18px] right-0 left-0 h-[2px]"
                     style={{ background: 'var(--tx)' }}
                   />
                 )}
@@ -132,30 +132,33 @@ export default function Header() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* ─── Actions (بدون زر الشمس/القمر) ─── */}
+        {/* ─── Actions: زر الأدمن + زر الإشعارات + زر الدخول/المستخدم ───
+           ملاحظة: تم حذف زر اللغة EN وزر الشمس/القمر بناءً على طلب التصميم */}
         <div className="flex items-center gap-2">
 
-          {/* زر الدعم */}
+          {/* ═══ زر دخول لوحة الأدمن (ظاهر دائماً — أيقونة الترس) ═══ */}
           <Link
-            href="/support"
-            title="الدعم الفني"
-            className="w-9 h-9 flex items-center justify-center transition-colors"
+            href="/admin"
+            title="دخول لوحة الأدمن"
+            className="w-9 h-9 flex items-center justify-center transition-colors hover:bg-[var(--bg3)]"
             style={{
               color: 'var(--tx)',
               border: '1px solid var(--b1)',
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <circle cx="12" cy="17" r="0.4" fill="currentColor" />
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <circle cx="8" cy="8" r="2.2" />
+              <path
+                d="M8 1.2 V 3 M8 13 V 14.8 M1.2 8 H 3 M13 8 H 14.8 M3.2 3.2 L 4.5 4.5 M11.5 11.5 L 12.8 12.8 M3.2 12.8 L 4.5 11.5 M11.5 4.5 L 12.8 3.2"
+                strokeLinecap="round"
+              />
             </svg>
           </Link>
 
-          {/* زر الإشعارات */}
+          {/* ═══ زر الإشعارات ═══ */}
           <button
             title="الإشعارات"
-            className="w-9 h-9 flex items-center justify-center transition-colors"
+            className="w-9 h-9 flex items-center justify-center transition-colors hover:bg-[var(--bg3)]"
             style={{
               color: 'var(--tx)',
               border: '1px solid var(--b1)',
@@ -168,39 +171,7 @@ export default function Header() {
             </svg>
           </button>
 
-          {/* مبدّل اللغة EN */}
-          <button
-            title="English"
-            className="h-9 px-3 text-[11px] font-medium transition-colors"
-            style={{
-              color: 'var(--tx)',
-              border: '1px solid var(--b1)',
-              background: 'transparent',
-              fontFamily: 'var(--sans-lat)',
-              letterSpacing: '0.08em',
-            }}
-          >
-            EN
-          </button>
-
-          {/* رابط لوحة الأدمن (لو admin) */}
-          {session?.plan === 'admin' && (
-            <Link
-              href="/admin/dashboard"
-              title="لوحة الأدمن"
-              className="hidden sm:flex w-9 h-9 items-center justify-center transition-colors"
-              style={{
-                color: 'var(--ac)',
-                border: '1px solid var(--b1)',
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </Link>
-          )}
-
-          {/* User chip أو زر دخول */}
+          {/* ═══ User chip أو زر دخول ═══ */}
           {session ? (
             <div className="relative">
               <button
@@ -211,9 +182,7 @@ export default function Header() {
                   color: 'var(--bg)',
                 }}
               >
-                <span className="text-[13px] font-medium">
-                  {session.name}
-                </span>
+                <span className="text-[13px] font-medium">{session.name}</span>
                 {session.plan === 'pro' && (
                   <span
                     className="text-[9px] font-semibold px-1.5 py-[3px]"
@@ -244,10 +213,7 @@ export default function Header() {
 
               {menuOpen && (
                 <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setMenuOpen(false)}
-                  />
+                  <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
                   <div
                     className="absolute left-0 mt-1.5 w-44 z-40 overflow-hidden animate-slide-up"
                     style={{
@@ -264,6 +230,16 @@ export default function Header() {
                     >
                       <span>الحساب</span>
                     </Link>
+                    {session.plan === 'admin' && (
+                      <Link
+                        href="/admin/dashboard"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-[var(--bg3)] transition-colors"
+                        style={{ color: 'var(--tx)' }}
+                      >
+                        <span>لوحة الأدمن</span>
+                      </Link>
+                    )}
                     <Link
                       href="/support"
                       onClick={() => setMenuOpen(false)}
