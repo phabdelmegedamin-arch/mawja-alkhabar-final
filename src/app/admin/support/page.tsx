@@ -24,22 +24,26 @@ interface Ticket {
 }
 
 interface Summary {
-  total: number; open: number; in_progress: number; resolved: number; urgent: number
+  total: number
+  open: number
+  in_progress: number
+  resolved: number
+  urgent: number
 }
 
-const STATUS_META = {
-  open:        { label: 'مفتوحة',        color: 'var(--rd)', bg: 'var(--rd2)' },
-  in_progress: { label: 'قيد المعالجة',   color: 'var(--yl)', bg: 'var(--yl2)' },
-  resolved:    { label: 'محلولة',        color: 'var(--gr)', bg: 'var(--gr2)' },
-  closed:      { label: 'مغلقة',         color: 'var(--t2)', bg: 'var(--bg3)' },
-} as const
+const STATUS_META: Record<Ticket['status'], { label: string; color: string; bg: string }> = {
+  open:        { label: 'مفتوحة',       color: 'var(--rd)', bg: 'var(--rd2)' },
+  in_progress: { label: 'قيد المعالجة',  color: 'var(--yl)', bg: 'var(--yl2)' },
+  resolved:    { label: 'محلولة',       color: 'var(--gr)', bg: 'var(--gr2)' },
+  closed:      { label: 'مغلقة',        color: 'var(--t2)', bg: 'var(--bg3)' },
+}
 
-const PRIORITY_META = {
-  urgent: { label: 'عاجل',   color: '#C63939' },
-  high:   { label: 'مرتفع',  color: '#B85C00' },
-  normal: { label: 'عادي',   color: 'var(--t2)' },
-  low:    { label: 'منخفض',  color: 'var(--t3)' },
-} as const
+const PRIORITY_META: Record<Ticket['priority'], { label: string; color: string }> = {
+  urgent: { label: 'عاجل',  color: '#C63939' },
+  high:   { label: 'مرتفع', color: '#B85C00' },
+  normal: { label: 'عادي',  color: 'var(--t2)' },
+  low:    { label: 'منخفض', color: 'var(--t3)' },
+}
 
 const CATEGORY_LABEL: Record<string, string> = {
   technical:  'فنية',
@@ -58,26 +62,22 @@ export default function AdminSupportPage() {
   const [loading,  setLoading]  = useState(true)
   const [selected, setSelected] = useState<Ticket | null>(null)
 
-  // Filters
   const [fStatus,   setFStatus]   = useState<string>('all')
   const [fPriority, setFPriority] = useState<string>('all')
   const [fCategory, setFCategory] = useState<string>('all')
   const [fSearch,   setFSearch]   = useState('')
 
-  // Edit form (in modal)
   const [replyText, setReplyText] = useState('')
   const [noteText,  setNoteText]  = useState('')
   const [saving,    setSaving]    = useState(false)
   const [saveMsg,   setSaveMsg]   = useState('')
 
-  // Guard
   useEffect(() => {
     if (!session || session.plan !== 'admin') {
       router.push('/admin')
     }
   }, [session, router])
 
-  // Load
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -101,7 +101,6 @@ export default function AdminSupportPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Open ticket in modal
   const openTicket = (t: Ticket) => {
     setSelected(t)
     setReplyText(t.admin_reply ?? '')
@@ -109,12 +108,10 @@ export default function AdminSupportPage() {
     setSaveMsg('')
   }
 
-  // Update ticket
-  const updateTicket = async (
-    patch: Partial<Pick<Ticket,'status'|'priority'|'admin_reply'|'admin_note'>>,
-  ) => {
+  const updateTicket = async (patch: Partial<Ticket>) => {
     if (!selected) return
-    setSaving(true); setSaveMsg('')
+    setSaving(true)
+    setSaveMsg('')
     try {
       const res = await fetch('/api/admin/support', {
         method:  'PATCH',
@@ -154,7 +151,6 @@ export default function AdminSupportPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="max-w-[1280px] mx-auto px-4 py-6">
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <Link
@@ -177,22 +173,20 @@ export default function AdminSupportPage() {
             className="px-3 py-1.5 rounded text-[12px] transition-colors"
             style={{ background: 'var(--bg3)', color: 'var(--t2)', border: '1px solid var(--b1)' }}
           >
-            ↻ تحديث
+            تحديث
           </button>
         </div>
 
-        {/* Summary cards */}
         {summary && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-5">
             <StatCard label="المجموع"       value={summary.total}       color="var(--tx)" />
             <StatCard label="مفتوحة"        value={summary.open}        color="var(--rd)" />
-            <StatCard label="قيد المعالجة"  value={summary.in_progress} color="var(--yl)" />
+            <StatCard label="قيد المعالجة"   value={summary.in_progress} color="var(--yl)" />
             <StatCard label="محلولة"        value={summary.resolved}    color="var(--gr)" />
             <StatCard label="عاجلة"         value={summary.urgent}      color="#C63939" emphasis />
           </div>
         )}
 
-        {/* Filters */}
         <div
           className="card p-3 mb-4 flex flex-wrap items-center gap-2"
           style={{ background: '#fff' }}
@@ -201,12 +195,13 @@ export default function AdminSupportPage() {
             type="text"
             value={fSearch}
             onChange={e => setFSearch(e.target.value)}
-            placeholder="ابحث بالموضوع، الاسم، البريد…"
+            placeholder="ابحث بالموضوع، الاسم، البريد..."
             className="flex-1 min-w-[180px] text-[12px]"
             style={{ padding: '6px 10px' }}
           />
           <FilterSelect
-            value={fStatus} onChange={setFStatus}
+            value={fStatus}
+            onChange={setFStatus}
             options={[
               { v: 'all',         l: 'كل الحالات' },
               { v: 'open',        l: 'مفتوحة' },
@@ -216,7 +211,8 @@ export default function AdminSupportPage() {
             ]}
           />
           <FilterSelect
-            value={fPriority} onChange={setFPriority}
+            value={fPriority}
+            onChange={setFPriority}
             options={[
               { v: 'all',    l: 'كل الأولويات' },
               { v: 'urgent', l: 'عاجل' },
@@ -226,7 +222,8 @@ export default function AdminSupportPage() {
             ]}
           />
           <FilterSelect
-            value={fCategory} onChange={setFCategory}
+            value={fCategory}
+            onChange={setFCategory}
             options={[
               { v: 'all',        l: 'كل الفئات' },
               { v: 'technical',  l: 'فنية' },
@@ -238,7 +235,6 @@ export default function AdminSupportPage() {
           />
         </div>
 
-        {/* Table */}
         <div className="card overflow-hidden" style={{ background: '#fff' }}>
           <div className="overflow-x-auto">
             <table className="adm-table">
@@ -255,85 +251,99 @@ export default function AdminSupportPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8" style={{ color: 'var(--t3)' }}>جارٍ التحميل…</td></tr>
+                  <tr>
+                    <td colSpan={7} className="text-center py-8" style={{ color: 'var(--t3)' }}>
+                      جارٍ التحميل...
+                    </td>
+                  </tr>
                 ) : tickets.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8" style={{ color: 'var(--t3)' }}>لا توجد تذاكر</td></tr>
-                ) : tickets.map(t => {
-                  const s = STATUS_META[t.status]
-                  const p = PRIORITY_META[t.priority]
-                  return (
-                    <tr
-                      key={t.id}
-                      onClick={() => openTicket(t)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td className="mono-num" style={{ color: 'var(--t3)', fontSize: 11 }}>
-                        #{String(t.ticket_no).padStart(5, '0')}
-                      </td>
-                      <td>
-                        <div className="font-medium" style={{ color: 'var(--tx)', fontSize: 13 }}>
-                          {t.subject}
-                        </div>
-                        <div className="text-[11px] truncate max-w-[320px]" style={{ color: 'var(--t3)' }}>
-                          {t.message.slice(0, 80)}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ color: 'var(--tx)', fontSize: 12 }}>{t.name}</div>
-                        <div className="mono-num text-[10px]" style={{ color: 'var(--t3)' }} dir="ltr">
-                          {t.email}
-                        </div>
-                      </td>
-                      <td>
-                        <span
-                          className="tag"
-                          style={{ background: 'var(--bg3)', color: 'var(--t2)', fontSize: 11 }}
-                        >
-                          {CATEGORY_LABEL[t.category] ?? t.category}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className="inline-flex items-center gap-1 text-[11px] font-medium"
-                          style={{ color: p.color }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
-                          {p.label}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className="tag"
-                          style={{ background: s.bg, color: s.color, fontSize: 11 }}
-                        >
-                          {s.label}
-                        </span>
-                      </td>
-                      <td className="mono-num text-[10px]" style={{ color: 'var(--t3)' }}>
-                        {new Date(t.created_at).toLocaleDateString('ar-SA', {
-                          month: 'short', day: 'numeric',
-                        })}
-                        <br />
-                        {new Date(t.created_at).toLocaleTimeString('ar-SA', {
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                      </td>
-                    </tr>
-                  )
-                })}
+                  <tr>
+                    <td colSpan={7} className="text-center py-8" style={{ color: 'var(--t3)' }}>
+                      لا توجد تذاكر
+                    </td>
+                  </tr>
+                ) : (
+                  tickets.map(t => {
+                    const s = STATUS_META[t.status]
+                    const p = PRIORITY_META[t.priority]
+                    return (
+                      <tr
+                        key={t.id}
+                        onClick={() => openTicket(t)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td className="mono-num" style={{ color: 'var(--t3)', fontSize: 11 }}>
+                          #{String(t.ticket_no).padStart(5, '0')}
+                        </td>
+                        <td>
+                          <div className="font-medium" style={{ color: 'var(--tx)', fontSize: 13 }}>
+                            {t.subject}
+                          </div>
+                          <div className="text-[11px] truncate max-w-[320px]" style={{ color: 'var(--t3)' }}>
+                            {t.message.slice(0, 80)}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ color: 'var(--tx)', fontSize: 12 }}>{t.name}</div>
+                          <div className="mono-num text-[10px]" style={{ color: 'var(--t3)' }} dir="ltr">
+                            {t.email}
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className="tag"
+                            style={{ background: 'var(--bg3)', color: 'var(--t2)', fontSize: 11 }}
+                          >
+                            {CATEGORY_LABEL[t.category] ?? t.category}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-medium"
+                            style={{ color: p.color }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
+                            {p.label}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className="tag"
+                            style={{ background: s.bg, color: s.color, fontSize: 11 }}
+                          >
+                            {s.label}
+                          </span>
+                        </td>
+                        <td className="mono-num text-[10px]" style={{ color: 'var(--t3)' }}>
+                          {new Date(t.created_at).toLocaleDateString('ar-SA', {
+                            month: 'short',
+                            day:   'numeric',
+                          })}
+                          <br />
+                          {new Date(t.created_at).toLocaleTimeString('ar-SA', {
+                            hour:   '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      {/* Modal / Detail view */}
       {selected && (
         <TicketModal
           ticket={selected}
-          replyText={replyText}     setReplyText={setReplyText}
-          noteText={noteText}       setNoteText={setNoteText}
-          saving={saving}           saveMsg={saveMsg}
+          replyText={replyText}
+          setReplyText={setReplyText}
+          noteText={noteText}
+          setNoteText={setNoteText}
+          saving={saving}
+          saveMsg={saveMsg}
           onClose={() => setSelected(null)}
           onUpdate={updateTicket}
           onDelete={() => deleteTicket(selected.id)}
@@ -348,19 +358,22 @@ export default function AdminSupportPage() {
 ─────────────────────────────────────────── */
 
 function StatCard({
-  label, value, color, emphasis,
+  label,
+  value,
+  color,
+  emphasis,
 }: {
-  label: string
-  value: number
-  color: string
+  label:    string
+  value:    number
+  color:    string
   emphasis?: boolean
 }) {
   return (
     <div
       className="card p-3"
       style={{
-        background: emphasis && value > 0 ? 'rgba(198,57,57,0.08)' : '#fff',
-        borderColor: emphasis && value > 0 ? 'rgba(198,57,57,0.2)' : undefined,
+        background:  emphasis && value > 0 ? 'rgba(198,57,57,0.08)' : '#fff',
+        borderColor: emphasis && value > 0 ? 'rgba(198,57,57,0.2)'  : undefined,
       }}
     >
       <div
@@ -377,23 +390,24 @@ function StatCard({
 }
 
 function FilterSelect({
-  value, onChange, options,
+  value,
+  onChange,
+  options,
 }: {
-  value: string
+  value:    string
   onChange: (v: string) => void
-  options: { v: string; l: string }[]
+  options:  { v: string; l: string }[]
 }) {
   return (
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
       className="text-[12px]"
-      style={{
-        padding: '6px 10px',
-        background: '#fff',
-      }}
+      style={{ padding: '6px 10px', background: '#fff' }}
     >
-      {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+      {options.map(o => (
+        <option key={o.v} value={o.v}>{o.l}</option>
+      ))}
     </select>
   )
 }
@@ -403,10 +417,15 @@ function FilterSelect({
 ─────────────────────────────────────────── */
 function TicketModal({
   ticket,
-  replyText, setReplyText,
-  noteText,  setNoteText,
-  saving,    saveMsg,
-  onClose, onUpdate, onDelete,
+  replyText,
+  setReplyText,
+  noteText,
+  setNoteText,
+  saving,
+  saveMsg,
+  onClose,
+  onUpdate,
+  onDelete,
 }: {
   ticket:       Ticket
   replyText:    string
@@ -416,7 +435,7 @@ function TicketModal({
   saving:       boolean
   saveMsg:      string
   onClose:      () => void
-  onUpdate:     (patch: any) => void
+  onUpdate:     (patch: Partial<Ticket>) => void
   onDelete:     () => void
 }) {
   const s = STATUS_META[ticket.status]
@@ -433,7 +452,6 @@ function TicketModal({
         className="card overflow-hidden w-full max-w-2xl max-h-[90vh] flex flex-col animate-slide-up"
         style={{ background: '#fff' }}
       >
-        {/* Header */}
         <div
           className="px-5 py-4 flex items-center justify-between"
           style={{ borderBottom: '1px solid var(--b1)' }}
@@ -459,16 +477,13 @@ function TicketModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-
-          {/* Meta */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Meta label="المرسل"   value={ticket.name} />
-            <Meta label="البريد"   value={ticket.email} mono ltr />
+            <Meta label="المرسل" value={ticket.name} />
+            <Meta label="البريد" value={ticket.email} mono ltr />
             {ticket.phone && <Meta label="الجوال" value={ticket.phone} mono ltr />}
-            <Meta label="الفئة"    value={CATEGORY_LABEL[ticket.category] ?? ticket.category} />
+            <Meta label="الفئة" value={CATEGORY_LABEL[ticket.category] ?? ticket.category} />
           </div>
 
-          {/* Message */}
           <div>
             <div
               className="text-[10px] uppercase tracking-[0.12em] mb-1.5"
@@ -476,3 +491,184 @@ function TicketModal({
             >
               الرسالة الأصلية
             </div>
+            <div
+              className="p-3 rounded text-[13px] leading-relaxed whitespace-pre-wrap"
+              style={{ background: 'var(--bg3)', color: 'var(--tx)', border: '1px solid var(--b1)' }}
+            >
+              {ticket.message}
+            </div>
+            <div className="text-[10px] mt-1.5" style={{ color: 'var(--t3)' }}>
+              {new Date(ticket.created_at).toLocaleString('ar-SA')}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div
+                className="text-[10px] uppercase tracking-[0.12em] mb-1.5"
+                style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
+              >
+                الحالة
+              </div>
+              <select
+                value={ticket.status}
+                onChange={e => onUpdate({ status: e.target.value as Ticket['status'] })}
+                disabled={saving}
+                className="w-full text-[13px]"
+                style={{ padding: '7px 10px' }}
+              >
+                <option value="open">مفتوحة</option>
+                <option value="in_progress">قيد المعالجة</option>
+                <option value="resolved">محلولة</option>
+                <option value="closed">مغلقة</option>
+              </select>
+            </div>
+            <div>
+              <div
+                className="text-[10px] uppercase tracking-[0.12em] mb-1.5"
+                style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
+              >
+                الأولوية
+              </div>
+              <select
+                value={ticket.priority}
+                onChange={e => onUpdate({ priority: e.target.value as Ticket['priority'] })}
+                disabled={saving}
+                className="w-full text-[13px]"
+                style={{ padding: '7px 10px' }}
+              >
+                <option value="low">منخفض</option>
+                <option value="normal">عادي</option>
+                <option value="high">مرتفع</option>
+                <option value="urgent">عاجل</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div
+              className="text-[10px] uppercase tracking-[0.12em] mb-1.5"
+              style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
+            >
+              الرد الرسمي (يظهر للمستخدم)
+            </div>
+            <textarea
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              rows={4}
+              placeholder="اكتب ردك هنا..."
+              className="w-full text-[13px]"
+              style={{ padding: '10px 12px', resize: 'vertical', fontFamily: 'var(--sans)' }}
+            />
+            {ticket.replied_at && (
+              <div className="text-[10px] mt-1" style={{ color: 'var(--t3)' }}>
+                آخر رد: {new Date(ticket.replied_at).toLocaleString('ar-SA')}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div
+              className="text-[10px] uppercase tracking-[0.12em] mb-1.5"
+              style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
+            >
+              ملاحظة داخلية (لا تظهر للمستخدم)
+            </div>
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              rows={2}
+              placeholder="ملاحظة خاصة بفريق الدعم..."
+              className="w-full text-[13px]"
+              style={{
+                padding:    '10px 12px',
+                resize:     'vertical',
+                background: 'rgba(245, 183, 28, 0.05)',
+                fontFamily: 'var(--sans)',
+              }}
+            />
+          </div>
+        </div>
+
+        <div
+          className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap"
+          style={{ borderTop: '1px solid var(--b1)', background: 'var(--bg2)' }}
+        >
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onDelete}
+              className="px-3 py-1.5 rounded text-[11px] transition-colors"
+              style={{
+                background: 'transparent',
+                color:      'var(--rd)',
+                border:     '1px solid rgba(198,57,57,0.3)',
+              }}
+            >
+              حذف
+            </button>
+            {saveMsg && (
+              <span
+                className="text-[11px]"
+                style={{ color: saveMsg === 'تم الحفظ' ? 'var(--gr)' : 'var(--rd)' }}
+              >
+                {saveMsg}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded text-[12px]"
+              style={{ background: 'transparent', color: 'var(--t2)', border: '1px solid var(--b2)' }}
+            >
+              إغلاق
+            </button>
+            <button
+              onClick={() => onUpdate({ admin_reply: replyText, admin_note: noteText })}
+              disabled={saving}
+              className="px-4 py-1.5 rounded text-[12px] font-medium"
+              style={{
+                background: saving ? 'var(--bg4)' : 'var(--tx)',
+                color:      saving ? 'var(--t3)' : 'var(--bg)',
+                cursor:     saving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? 'جارٍ الحفظ...' : 'حفظ الرد والملاحظة'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Meta({
+  label,
+  value,
+  mono,
+  ltr,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  ltr?:  boolean
+}) {
+  return (
+    <div>
+      <div
+        className="text-[10px] uppercase tracking-[0.1em] mb-0.5"
+        style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
+      >
+        {label}
+      </div>
+      <div
+        className={`text-[12px] ${mono ? 'mono-num' : ''}`}
+        style={{ color: 'var(--tx)' }}
+        dir={ltr ? 'ltr' : undefined}
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
