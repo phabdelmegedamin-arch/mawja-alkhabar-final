@@ -5,6 +5,8 @@ import type { ApiResponse } from '@/types'
 // في الإنتاج، أضف فحص session/admin-token هنا.
 // حالياً نعتمد على أن المسار /admin محمي في الواجهة عبر useAuthStore.
 
+type StatRow = { status: string; priority: string }
+
 // ── GET — قائمة التذاكر (مع فلاتر) ─────────────────────────────
 export async function GET(req: NextRequest) {
   try {
@@ -43,14 +45,18 @@ export async function GET(req: NextRequest) {
       .from('support_tickets')
       .select('status, priority')
 
+    const rows = (stats ?? []) as StatRow[]
+
     const summary = {
-      total:     count ?? 0,
-      open:      stats?.filter(t => t.status   === 'open').length       ?? 0,
-      in_progress: stats?.filter(t => t.status === 'in_progress').length ?? 0,
-      resolved:  stats?.filter(t => t.status   === 'resolved').length   ?? 0,
-      urgent:    stats?.filter(t => t.priority === 'urgent'
-                             && t.status   !== 'closed'
-                             && t.status   !== 'resolved').length       ?? 0,
+      total:       count ?? 0,
+      open:        rows.filter((t: StatRow) => t.status   === 'open').length,
+      in_progress: rows.filter((t: StatRow) => t.status   === 'in_progress').length,
+      resolved:    rows.filter((t: StatRow) => t.status   === 'resolved').length,
+      urgent:      rows.filter((t: StatRow) =>
+                     t.priority === 'urgent'
+                     && t.status !== 'closed'
+                     && t.status !== 'resolved'
+                   ).length,
     }
 
     return NextResponse.json<ApiResponse>({
@@ -83,7 +89,7 @@ export async function PATCH(req: NextRequest) {
     const update: Record<string, unknown> = {}
 
     // الحقول القابلة للتعديل
-    if (typeof body.status      === 'string') {
+    if (typeof body.status === 'string') {
       if (!['open','in_progress','resolved','closed'].includes(body.status)) {
         return NextResponse.json<ApiResponse>(
           { success: false, error: 'حالة غير صالحة' },
@@ -93,7 +99,7 @@ export async function PATCH(req: NextRequest) {
       update.status = body.status
     }
 
-    if (typeof body.priority    === 'string') {
+    if (typeof body.priority === 'string') {
       if (!['low','normal','high','urgent'].includes(body.priority)) {
         return NextResponse.json<ApiResponse>(
           { success: false, error: 'أولوية غير صالحة' },
@@ -104,15 +110,15 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (typeof body.admin_reply === 'string') {
-      update.admin_reply = body.admin_reply.trim().slice(0, 5000)
-      if (update.admin_reply) {
+      const reply = body.admin_reply.trim().slice(0, 5000)
+      update.admin_reply = reply
+      if (reply) {
         update.replied_at = new Date().toISOString()
-        // عند أول رد، إن كانت مفتوحة حوّلها لقيد المعالجة
         if (!body.status) update.status = 'in_progress'
       }
     }
 
-    if (typeof body.admin_note  === 'string') {
+    if (typeof body.admin_note === 'string') {
       update.admin_note = body.admin_note.trim().slice(0, 2000)
     }
 
