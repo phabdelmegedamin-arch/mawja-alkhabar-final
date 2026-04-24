@@ -5,15 +5,16 @@ interface Ticker { t: string; n: string; p: number; ch: number }
 
 const TRACKED = [
   { t: '2222', n: 'أرامكو' },
+  { t: '1303', n: 'الكترا' },
   { t: '1120', n: 'الراجحي' },
-  { t: '2010', n: 'سابك' },
-  { t: '7010', n: 'stc' },
   { t: '1180', n: 'الأهلي' },
+  { t: '2010', n: 'سابك' },
+  { t: '2223', n: 'لوبريف' },
+  { t: '2380', n: 'بترو رابغ' },
+  { t: '7010', n: 'stc' },
   { t: '2280', n: 'المراعي' },
   { t: '1150', n: 'الإنماء' },
   { t: '1211', n: 'معادن' },
-  { t: '4190', n: 'جرير' },
-  { t: '2050', n: 'صافولا' },
 ]
 
 export default function TickerBar() {
@@ -62,10 +63,11 @@ export default function TickerBar() {
   if (loading) {
     return (
       <div
-        className="h-8 flex items-center px-4"
+        className="max-w-[1320px] mx-auto flex items-center"
         style={{
-          background: 'var(--bg2)',
-          borderBottom: '1px solid var(--b1)',
+          padding: '14px 48px',
+          borderTop: '1px solid var(--rule)',
+          borderBottom: '1px solid var(--rule)',
         }}
       >
         <div className="shimmer h-3 w-48 rounded" />
@@ -73,61 +75,68 @@ export default function TickerBar() {
     )
   }
 
-  const doubled = [...tickers, ...tickers]
-
   return (
     <div
-      className="h-8 overflow-hidden relative"
+      className="max-w-[1320px] mx-auto flex items-center overflow-hidden"
       style={{
-        background: 'var(--bg2)',
-        borderBottom: '1px solid var(--b1)',
+        padding: '14px 48px',
+        borderTop: '1px solid var(--rule)',
+        borderBottom: '1px solid var(--rule)',
       }}
     >
-      {/* Live indicator */}
+      {/* ═══ Strip label: TADAWUL · OPEN مع نقطة خضراء ═══ */}
       <div
-        className="absolute right-0 top-0 bottom-0 z-10 flex items-center gap-1.5 px-3"
+        className="flex items-center"
         style={{
-          background: 'linear-gradient(270deg, var(--bg2) 70%, transparent)',
-          paddingLeft: 24,
+          gap: '8px',
+          fontFamily: 'var(--sans-lat)',
+          fontSize: '11px',
+          fontWeight: 500,
+          color: 'var(--ink)',
+          letterSpacing: '0.15em',
+          paddingLeft: '20px',
+          marginLeft: '20px',
+          borderLeft: '1px solid var(--rule)',
+          flexShrink: 0,
         }}
       >
-        <span className="live-dot" />
         <span
-          className="text-[10px] font-medium uppercase tracking-[0.1em]"
-          style={{ color: 'var(--t2)', fontFamily: 'var(--sans-lat)' }}
-        >
-          LIVE · TASI
-        </span>
+          style={{
+            width: '6px',
+            height: '6px',
+            background: 'var(--bull)',
+            borderRadius: '50%',
+            display: 'inline-block',
+          }}
+        />
+        <span>TADAWUL · OPEN</span>
       </div>
 
-      {/* Scrolling tickers */}
-      <div className="flex items-center h-full animate-ticker will-change-transform">
-        {doubled.map((tk, i) => {
+      {/* ═══ Items ═══ */}
+      <div
+        className="flex overflow-hidden"
+        style={{
+          gap: '36px',
+          fontFamily: 'var(--mono)',
+          fontSize: '12px',
+          maskImage: 'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
+          WebkitMaskImage: 'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
+        }}
+      >
+        {tickers.map(tk => {
           const isPos = tk.ch >= 0
-          const color = isPos ? 'var(--gr)' : 'var(--rd)'
           return (
             <div
-              key={`${tk.t}-${i}`}
-              className="ticker-item"
-              style={{ borderLeft: '1px solid var(--b1)' }}
+              key={tk.t}
+              className="flex"
+              style={{ gap: '8px', whiteSpace: 'nowrap' }}
             >
-              <span
-                className="mono-num text-[10px] font-medium"
-                style={{ color: 'var(--t3)' }}
-              >
-                {tk.t}
-              </span>
-              <span className="text-[11px]" style={{ color: 'var(--tx)' }}>
-                {tk.n}
-              </span>
-              <span className="mono-num text-[11px]" style={{ color: 'var(--t2)' }}>
+              <span style={{ color: 'var(--muted)' }}>{tk.t}</span>
+              <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
                 {tk.p.toFixed(2)}
               </span>
-              <span
-                className="mono-num text-[10px] font-medium"
-                style={{ color }}
-              >
-                {isPos ? '▲' : '▼'} {Math.abs(tk.ch).toFixed(2)}%
+              <span style={{ color: isPos ? 'var(--bull)' : 'var(--bear)' }}>
+                {isPos ? '+' : '−'}{Math.abs(tk.ch).toFixed(2)}
               </span>
             </div>
           )
