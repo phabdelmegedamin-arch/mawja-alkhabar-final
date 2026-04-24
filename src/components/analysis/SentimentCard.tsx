@@ -6,12 +6,21 @@ import { DB } from '@/data/market-db'
 
 interface Props { result: AnalysisResult }
 
+/* ═══════════════════════════════════════════════════════
+   كارت النتيجة — مطابق لتصميم v7 HTML الأصلي
+   - الرقم بحجم ضخم (150px) خفيف
+   - شريط أصفر صغير في الزاوية اليمنى العلوية
+   - تصنيف نصي + سطر إنجليزي مرتب
+   - ملخص لغوي مختصر داخل خطين فاصلين
+   - 4 مؤشرات: CONFIDENCE / HORIZON / SECTOR / TONE
+   ═══════════════════════════════════════════════════════ */
 export default function SentimentCard({ result }: Props) {
-  const { sentiment, primary, allSectors, stocks } = result
+  const { sentiment, primary, stocks } = result
   const abs = Math.abs(sentiment.score)
   const dir = sentiment.dir
   const [displayScore, setDisplayScore] = useState(0)
 
+  /* أنيميشن للرقم */
   useEffect(() => {
     setDisplayScore(0)
     const step  = Math.max(1, Math.ceil(abs / 22))
@@ -26,24 +35,47 @@ export default function SentimentCard({ result }: Props) {
   }, [abs])
 
   const pData = (DB as Record<string, { label: string; icon: string }>)[primary]
-  const related = allSectors.slice(1, 4)
-    .map(k => (DB as Record<string, { label: string }>)[k]?.label)
-    .filter(Boolean) as string[]
 
-  const intensity = abs > 60 ? 'عالية' : abs > 35 ? 'متوسطة' : abs > 10 ? 'منخفضة' : 'ضعيفة'
-  const speed     = abs > 55 ? 'سريعة' : abs > 30 ? 'متوسطة' : 'بطيئة'
-
-  // الألوان داخل البلوك الأسود
-  const sentColor = dir === 'pos' ? '#4ADE80' : dir === 'neg' ? '#F87171' : '#FCD34D'
-  const dirSymbol = dir === 'pos' ? '↑' : dir === 'neg' ? '↓' : '◎'
+  /* الألوان داخل البلوك الأسود */
   const cream     = '#F4EFE6'
-  const creamDim  = 'rgba(244, 239, 230, 0.56)'
-  const creamFaint= 'rgba(244, 239, 230, 0.30)'
+  const creamDim  = 'rgba(244, 239, 230, 0.85)'
+  const creamMid  = 'rgba(244, 239, 230, 0.55)'
+  const creamFaint= 'rgba(244, 239, 230, 0.45)'
+  const creamSoft = 'rgba(244, 239, 230, 0.35)'
   const creamLine = 'rgba(244, 239, 230, 0.12)'
+  const amber     = '#F5B71C'
+
+  /* تسميات */
+  const sentLabel = dir === 'pos' ? 'إيجابي' : dir === 'neg' ? 'سلبي' : 'محايد'
+  const sentLabelEn = dir === 'pos' ? 'POSITIVE' : dir === 'neg' ? 'NEGATIVE' : 'NEUTRAL'
+  const intensityAr = abs > 60 ? 'مرتفعة' : abs > 35 ? 'متوسطة' : abs > 10 ? 'منخفضة' : 'ضعيفة'
+  const intensityEn = abs > 60 ? 'HIGH CONFIDENCE' : abs > 35 ? 'MEDIUM CONFIDENCE' : 'LOW CONFIDENCE'
+
+  /* أفق التحليل */
+  const horizon = abs > 55 ? 'قصير الأجل' : abs > 30 ? 'متوسط الأجل' : 'طويل الأجل'
+
+  /* النبرة */
+  const tone = result.usedAI ? 'مؤسسية' : 'تحليلية'
+
+  /* السهم المحوري لإظهاره في الملخص */
+  const originName = result.networkResult?.meta?.originStock?.name
+  const originCode = result.originCode
+
+  /* ملخص لغوي مختصر */
+  const briefIntro =
+    dir === 'pos' ? 'إيجابية مؤسسية' :
+    dir === 'neg' ? 'سلبية ملحوظة' : 'نبرة محايدة'
+
+  const briefBody =
+    dir === 'pos'
+      ? '— تشير المؤشرات إلى تأثير داعم على ثقة المستثمرين والأسهم المرتبطة'
+      : dir === 'neg'
+      ? '— تشير المؤشرات إلى ضغط محتمل على الأسهم المرتبطة في القطاع'
+      : '— تشير المؤشرات إلى تأثير متوازن دون تحرّك واضح في الاتجاه'
 
   return (
     <div
-      className="flex flex-col overflow-hidden"
+      className="flex flex-col overflow-hidden relative h-full"
       style={{
         background:   '#0F0F0F',
         borderRadius: 'var(--r-xl)',
@@ -51,181 +83,167 @@ export default function SentimentCard({ result }: Props) {
         color:        cream,
       }}
     >
-      {/* Header bar */}
+      {/* ─── الشريط الأصفر العلوي (decoration) ─── */}
       <div
-        className="flex items-center justify-between px-5 py-3"
-        style={{ borderBottom: `1px solid ${creamLine}` }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="live-dot" style={{ background: '#4ADE80' }} />
-          <span
-            className="text-[10px] uppercase tracking-[0.18em]"
-            style={{ color: creamDim, fontFamily: 'var(--sans-lat)' }}
+        className="absolute top-[36px] right-[28px] w-[40px] h-[3px]"
+        style={{ background: amber }}
+      />
+
+      {/* ─── دائرة decoration في الزاوية السفلى اليسرى ─── */}
+      <div
+        className="absolute bottom-[-180px] left-[-120px] w-[340px] h-[340px] rounded-full pointer-events-none"
+        style={{ border: `1px solid ${creamLine}` }}
+      />
+
+      {/* ─── المحتوى ─── */}
+      <div className="flex-1 flex flex-col justify-between p-7 relative z-10">
+
+        {/* ═══ التوب: SENTIMENT label + tag ═══ */}
+        <div>
+          <div className="flex items-center justify-between mb-3 mt-3">
+            <span
+              className="text-[10px] uppercase"
+              style={{
+                color: creamMid,
+                letterSpacing: '0.2em',
+                fontFamily: 'var(--sans-lat)',
+                fontWeight: 500,
+              }}
+            >
+              اتجاه الخبر · SENTIMENT
+            </span>
+            <span
+              className="flex items-center gap-2 text-[12px] font-medium"
+              style={{ color: amber }}
+            >
+              <span
+                className="inline-block w-[6px] h-[6px] rounded-full"
+                style={{ background: amber }}
+              />
+              {sentLabel}
+            </span>
+          </div>
+
+          {/* ═══ الرقم الضخم 85% ═══ */}
+          <div className="flex items-start mt-4 mb-2">
+            <span
+              className="mono-num"
+              style={{
+                fontSize:      '120px',
+                fontWeight:    200,
+                lineHeight:    0.85,
+                letterSpacing: '-0.06em',
+                color:         cream,
+              }}
+            >
+              {displayScore}
+            </span>
+            <span
+              className="mono-num"
+              style={{
+                fontSize: '18px',
+                fontWeight: 400,
+                color: creamFaint,
+                marginRight: '6px',
+                marginTop: '10px',
+              }}
+            >
+              %
+            </span>
+          </div>
+
+          {/* ═══ السطر النصي تحت الرقم ═══ */}
+          <div
+            className="text-[15px] mb-1"
+            style={{ color: creamDim }}
           >
-            قياس مكتمل
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            className="text-[10px] font-medium px-2 py-0.5 rounded"
+            {sentLabel === 'إيجابي' ? 'إيجابية' : sentLabel === 'سلبي' ? 'سلبية' : 'حيادية'} الخبر{' '}
+            <strong style={{ color: amber, fontWeight: 500 }}>{intensityAr}</strong>
+          </div>
+
+          <div
+            className="text-[10px] uppercase mb-5"
             style={{
-              background: result.usedAI ? 'rgba(245, 183, 28, 0.18)' : creamLine,
-              color:      result.usedAI ? '#F5B71C' : creamDim,
+              color: creamSoft,
+              letterSpacing: '0.15em',
               fontFamily: 'var(--sans-lat)',
             }}
           >
-            {result.usedAI ? 'AI · ' : ''}{result.confidence}% ثقة
-          </span>
-        </div>
-      </div>
-
-      {/* Main display */}
-      <div className="flex-1 px-5 py-6 flex flex-col justify-center">
-
-        {/* Sentiment label */}
-        <div
-          className="text-[11px] uppercase tracking-[0.2em] mb-3"
-          style={{ color: creamDim, fontFamily: 'var(--sans-lat)' }}
-        >
-          اتجاه الخبر
-        </div>
-
-        {/* Score + dir */}
-        <div className="flex items-baseline gap-3 mb-1">
-          <span
-            className="mono-num"
-            style={{
-              fontSize:      '68px',
-              fontWeight:    300,
-              lineHeight:    0.9,
-              letterSpacing: '-0.04em',
-              color:         sentColor,
-            }}
-          >
-            {dirSymbol} {displayScore}
-          </span>
-          <span
-            className="mono-num"
-            style={{ fontSize: '14px', color: creamFaint, paddingBottom: '8px' }}
-            title="الدرجة من 92 — الحد الأقصى لأوزان القاموس"
-          >
-            / 92
-          </span>
-        </div>
-
-        <div
-          className="text-[14px] font-medium mb-5"
-          style={{ color: sentColor }}
-        >
-          {sentimentLabel(dir)}
-          <span className="text-[11px] mr-2" style={{ color: creamDim }}>
-            · حدة {intensity}
-          </span>
-        </div>
-
-        {/* Score bar */}
-        <div
-          className="h-[3px] rounded-full overflow-hidden mb-6"
-          style={{ background: creamLine }}
-        >
-          <div
-            style={{
-              width:       `${abs}%`,
-              height:      '100%',
-              background:  sentColor,
-              transition:  'width 0.9s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-          />
-        </div>
-
-        {/* Keywords */}
-        {(sentiment.pos_words.length > 0 || sentiment.neg_words.length > 0) && (
-          <div className="mb-5">
-            <div
-              className="text-[10px] uppercase tracking-[0.15em] mb-2"
-              style={{ color: creamDim, fontFamily: 'var(--sans-lat)' }}
-            >
-              كلمات مؤثرة
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {sentiment.pos_words.slice(0, 4).map(w => (
-                <span
-                  key={w}
-                  className="text-[11px] px-2 py-0.5 rounded"
-                  style={{
-                    background: 'rgba(74, 222, 128, 0.12)',
-                    color:      '#86EFAC',
-                    border:     '1px solid rgba(74, 222, 128, 0.24)',
-                  }}
-                >
-                  {w}
-                </span>
-              ))}
-              {sentiment.neg_words.slice(0, 4).map(w => (
-                <span
-                  key={w}
-                  className="text-[11px] px-2 py-0.5 rounded"
-                  style={{
-                    background: 'rgba(248, 113, 113, 0.12)',
-                    color:      '#FCA5A5',
-                    border:     '1px solid rgba(248, 113, 113, 0.24)',
-                  }}
-                >
-                  {w}
-                </span>
-              ))}
-            </div>
+            {sentLabelEn} · {intensityEn}
           </div>
-        )}
 
-        {/* Metrics grid */}
-        <div
-          className="grid grid-cols-2 gap-y-3 gap-x-6 pt-4"
-          style={{ borderTop: `1px solid ${creamLine}` }}
-        >
+          {/* ═══ ملخص لغوي مختصر بين خطين ═══ */}
+          <div
+            className="text-[13px] py-4 my-2"
+            style={{
+              color: creamDim,
+              borderTop: `1px solid ${creamLine}`,
+              borderBottom: `1px solid ${creamLine}`,
+              lineHeight: 1.7,
+              fontWeight: 300,
+              letterSpacing: '-0.005em',
+            }}
+          >
+            نبرة <strong style={{ color: amber, fontWeight: 500 }}>{briefIntro}</strong> {briefBody}
+            {originName && originCode && (
+              <>
+                . السهم المحوري:{' '}
+                <strong style={{ color: amber, fontWeight: 500 }}>
+                  {originName} {originCode}
+                </strong>
+                .
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ═══ شبكة المؤشرات الأربعة ═══ */}
+        <div className="grid grid-cols-2 gap-4 mt-5">
           <Metric
-            label="القطاع"
+            labelEn="CONFIDENCE"
+            value={`${result.confidence}%`}
+            mono
+          />
+          <Metric
+            labelEn="HORIZON"
+            value={horizon}
+          />
+          <Metric
+            labelEn="SECTOR"
             value={pData?.label ?? '—'}
-            color={cream}
           />
           <Metric
-            label="قطاعات مرتبطة"
-            value={`${related.length}`}
-            mono
-            color={cream}
-          />
-          <Metric
-            label="سرعة الانتشار"
-            value={speed}
-            color={cream}
-          />
-          <Metric
-            label="الأسهم المتأثرة"
-            value={`${stocks.length}`}
-            mono
-            color="#F5B71C"
+            labelEn="TONE"
+            value={tone}
           />
         </div>
       </div>
 
-      {/* AI insight footer (if exists) */}
+      {/* ─── AI insight footer (لو موجود) ─── */}
       {result.insight && (
         <div
-          className="px-5 py-4"
+          className="px-7 py-4 relative z-10"
           style={{
             background:  'rgba(245, 183, 28, 0.06)',
             borderTop:   `1px solid ${creamLine}`,
           }}
         >
           <div
-            className="text-[10px] uppercase tracking-[0.18em] mb-1.5 flex items-center gap-1.5"
-            style={{ color: '#F5B71C', fontFamily: 'var(--sans-lat)' }}
+            className="text-[10px] uppercase mb-1.5 flex items-center gap-1.5"
+            style={{
+              color: amber,
+              letterSpacing: '0.18em',
+              fontFamily: 'var(--sans-lat)',
+            }}
           >
             <span>✦</span> قراءة Claude
           </div>
           <p
-            className="text-[12.5px] leading-relaxed"
-            style={{ color: 'rgba(244, 239, 230, 0.88)' }}
+            className="text-[12.5px]"
+            style={{
+              color: 'rgba(244, 239, 230, 0.88)',
+              lineHeight: 1.6,
+            }}
           >
             {result.insight}
           </p>
@@ -235,25 +253,32 @@ export default function SentimentCard({ result }: Props) {
   )
 }
 
+/* ═══════════════════════════════════════════════
+   مكوّن مؤشر فردي — تسمية إنجليزية + قيمة
+   ═══════════════════════════════════════════════ */
 function Metric({
-  label, value, mono, color,
+  labelEn, value, mono,
 }: {
-  label: string
+  labelEn: string
   value: string
   mono?: boolean
-  color: string
 }) {
   return (
-    <div>
+    <div className="flex flex-col gap-1.5">
       <div
-        className="text-[10px] uppercase tracking-[0.12em] mb-1"
-        style={{ color: 'rgba(244, 239, 230, 0.44)', fontFamily: 'var(--sans-lat)' }}
+        className="text-[10px] uppercase"
+        style={{
+          color: 'rgba(244, 239, 230, 0.45)',
+          letterSpacing: '0.15em',
+          fontFamily: 'var(--sans-lat)',
+          fontWeight: 500,
+        }}
       >
-        {label}
+        {labelEn}
       </div>
       <div
         className={`text-[13px] font-medium ${mono ? 'mono-num' : ''}`}
-        style={{ color }}
+        style={{ color: '#F4EFE6' }}
       >
         {value}
       </div>
