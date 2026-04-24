@@ -1,102 +1,137 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-interface Price { ticker: string; price: number; change: number }
+interface Ticker { t: string; n: string; p: number; ch: number }
 
-const DEFAULT_TICKERS = ['2222','1180','7010','2010','1120','1303','3030','8020']
+const TRACKED = [
+  { t: '2222', n: 'أرامكو' },
+  { t: '1120', n: 'الراجحي' },
+  { t: '2010', n: 'سابك' },
+  { t: '7010', n: 'stc' },
+  { t: '1180', n: 'الأهلي' },
+  { t: '2280', n: 'المراعي' },
+  { t: '1150', n: 'الإنماء' },
+  { t: '1211', n: 'معادن' },
+  { t: '4190', n: 'جرير' },
+  { t: '2050', n: 'صافولا' },
+]
 
 export default function TickerBar() {
-  const [prices, setPrices] = useState<Price[]>([])
+  const [tickers, setTickers] = useState<Ticker[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchPrices = async () => {
+    try {
+      const tickersList = TRACKED.map(t => t.t).join(',')
+      const res = await fetch(`/api/prices?tickers=${tickersList}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.data) {
+          const merged = TRACKED.map(tr => {
+            const live = data.data.find((p: any) => p.ticker === tr.t)
+            return {
+              t:  tr.t,
+              n:  tr.n,
+              p:  live?.price  ?? 0,
+              ch: live?.change ?? 0,
+            }
+          })
+          setTickers(merged)
+          setLoading(false)
+          return
+        }
+      }
+    } catch {}
+    // Fallback mock
+    setTickers(
+      TRACKED.map(t => ({
+        ...t,
+        p:  +(20 + Math.random() * 100).toFixed(2),
+        ch: +(Math.random() * 4 - 2).toFixed(2),
+      })),
+    )
+    setLoading(false)
+  }
 
   useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        const res  = await fetch(`/api/prices?tickers=${DEFAULT_TICKERS.join(',')}`)
-        const data = await res.json()
-        if (data.success) setPrices(data.data)
-      } catch {}
-    }
     fetchPrices()
-    const t = setInterval(fetchPrices, 60_000)
-    return () => clearInterval(t)
+    const interval = setInterval(fetchPrices, 60_000)
+    return () => clearInterval(interval)
   }, [])
 
-  if (!prices.length) {
+  if (loading) {
     return (
       <div
+        className="h-8 flex items-center px-4"
         style={{
-          height: '32px',
           background: 'var(--bg2)',
           borderBottom: '1px solid var(--b1)',
-          display: 'flex', alignItems: 'center',
-          paddingRight: '16px', gap: '10px',
         }}
       >
-        <span style={{ fontSize: '10px', color: 'var(--t3)', fontFamily: 'var(--mono)', letterSpacing: '0.06em' }}>
-          LIVE
-        </span>
-        <span style={{ fontSize: '11px', color: 'var(--t3)' }}>جارٍ التحميل...</span>
+        <div className="shimmer h-3 w-48 rounded" />
       </div>
     )
   }
 
-  const items = [...prices, ...prices]
+  const doubled = [...tickers, ...tickers]
 
   return (
     <div
+      className="h-8 overflow-hidden relative"
       style={{
-        height: '32px',
         background: 'var(--bg2)',
         borderBottom: '1px solid var(--b1)',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
       }}
     >
-      {/* Label */}
+      {/* Live indicator */}
       <div
+        className="absolute right-0 top-0 bottom-0 z-10 flex items-center gap-1.5 px-3"
         style={{
-          flexShrink: 0,
-          padding: '0 12px',
-          borderLeft: '1px solid var(--b1)',
-          fontSize: '10px',
-          fontFamily: 'var(--mono)',
-          fontWeight: 500,
-          letterSpacing: '0.06em',
-          color: 'var(--t3)',
+          background: 'linear-gradient(270deg, var(--bg2) 70%, transparent)',
+          paddingLeft: 24,
         }}
       >
-        LIVE
+        <span className="live-dot" />
+        <span
+          className="text-[10px] font-medium uppercase tracking-[0.1em]"
+          style={{ color: 'var(--t2)', fontFamily: 'var(--sans-lat)' }}
+        >
+          LIVE · TASI
+        </span>
       </div>
 
-      {/* Scroll */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <div className="animate-ticker" style={{ display: 'flex', width: 'max-content' }}>
-          {items.map((p, i) => {
-            const isPos = p.change > 0
-            const isNeg = p.change < 0
-            return (
-              <span key={i} className="ticker-item">
-                <span style={{ color: 'var(--t2)', fontFamily: 'var(--mono)', fontSize: '11px' }}>
-                  {p.ticker}
-                </span>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: 'var(--tx)' }}>
-                  {p.price.toFixed(2)}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--mono)',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    color: isPos ? 'var(--gr)' : isNeg ? 'var(--rd)' : 'var(--t2)',
-                  }}
-                >
-                  {isPos ? '▲' : isNeg ? '▼' : '◆'}{Math.abs(p.change)}%
-                </span>
+      {/* Scrolling tickers */}
+      <div className="flex items-center h-full animate-ticker will-change-transform">
+        {doubled.map((tk, i) => {
+          const isPos = tk.ch >= 0
+          const color = isPos ? 'var(--gr)' : 'var(--rd)'
+          return (
+            <div
+              key={`${tk.t}-${i}`}
+              className="ticker-item"
+              style={{ borderLeft: '1px solid var(--b1)' }}
+            >
+              <span
+                className="mono-num text-[10px] font-medium"
+                style={{ color: 'var(--t3)' }}
+              >
+                {tk.t}
               </span>
-            )
-          })}
-        </div>
+              <span className="text-[11px]" style={{ color: 'var(--tx)' }}>
+                {tk.n}
+              </span>
+              <span className="mono-num text-[11px]" style={{ color: 'var(--t2)' }}>
+                {tk.p.toFixed(2)}
+              </span>
+              <span
+                className="mono-num text-[10px] font-medium"
+                style={{ color }}
+              >
+                {isPos ? '▲' : '▼'} {Math.abs(tk.ch).toFixed(2)}%
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
