@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
         path:           string[]
         formula:        string
         strength:       number
+        propagationDir?: 'UPWARD' | 'DOWNWARD' | 'ORIGIN'
       }>
       warnings: string[]
     } | undefined
@@ -156,6 +157,9 @@ export async function POST(req: NextRequest) {
             path:           r.path,
             formula:        r.formula,
             strength:       r.strength,
+            // ✅ إصلاح جوهري: تمرير اتجاه الانتشار
+            // بدون هذا الحقل، OwnershipAccordion يفلتر بالـ UPWARD فيحصل على [] دائماً
+            propagationDir: r.propagationDir,
           })),
           warnings: engineResult.warnings,
         }
