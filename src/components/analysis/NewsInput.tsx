@@ -18,20 +18,13 @@ const SA_STOCKS = (() => {
   return out.sort((a, b) => a.t.localeCompare(b.t))
 })()
 
-const EXAMPLES = [
-  { label: 'أرباح قياسية',   text: 'أعلنت أرامكو السعودية عن أرباح قياسية في الربع الأخير فاقت توقعات المحللين بنسبة 12%' },
-  { label: 'رفع الفائدة',    text: 'رفع البنك المركزي سعر الفائدة 25 نقطة أساس في ظل ضغوط التضخم' },
-  { label: 'عقد ضخم',        text: 'ترسية مشروع حكومي بقيمة 3 مليار ريال ضمن مستهدفات رؤية 2030' },
-  { label: 'تراجع النفط',    text: 'انخفض خام برنت 4% متأثراً بمخاوف تباطؤ الطلب العالمي' },
-]
-
 export default function NewsInput() {
   const [tab, setTab] = useState<Tab>('news')
   const {
     inputText, setInput, setResult, setLoading, setError, addHistory,
     market, waves, isLoading,
   } = useAnalysisStore()
-  const { session, isPro } = useAuthStore()
+  const { isPro } = useAuthStore()
   const pro = isPro()
 
   const [search, setSearch]     = useState('')
@@ -76,42 +69,27 @@ export default function NewsInput() {
       let networkResult: any = undefined
       let originCode: string | undefined = detectedCode ?? undefined
 
-      if (useAI && pro) {
-        try {
-          const apiKey = localStorage.getItem('anthropic_key') || undefined
-          const res    = await fetch('/api/analyze', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-api-key': apiKey } : {}) },
-            body:    JSON.stringify({ text, market, waves, useAI: true }),
-          })
-          const data = await res.json()
-          if (data.success && data.data) {
-            insight       = data.data.insight
-            usedAI        = data.data.usedAI
-            networkResult = data.data.networkResult
-            originCode    = data.data.originCode ?? originCode
-          }
-        } catch {}
-      } else {
-        try {
-          const res  = await fetch('/api/analyze', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ text, market, waves, useAI: false }),
-          })
-          const data = await res.json()
-          if (data.success && data.data) {
-            networkResult = data.data.networkResult
-            originCode    = data.data.originCode ?? originCode
-          }
-        } catch {}
-      }
+      try {
+        const apiKey = useAI && pro ? (localStorage.getItem('anthropic_key') || undefined) : undefined
+        const res    = await fetch('/api/analyze', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'x-api-key': apiKey } : {}) },
+          body:    JSON.stringify({ text, market, waves, useAI: useAI && pro }),
+        })
+        const data = await res.json()
+        if (data.success && data.data) {
+          insight       = data.data.insight
+          usedAI        = data.data.usedAI
+          networkResult = data.data.networkResult
+          originCode    = data.data.originCode ?? originCode
+        }
+      } catch {}
 
       const result: AnalysisResult = {
         text, sentiment, primary, allSectors, ripples,
         stocks:     ripples.filter(r => !r.isHead),
         timeline, insight,
-        confidence: usedAI ? 82 : 71,
+        confidence: usedAI ? 92 : 71,
         usedAI, market, ts: new Date().toISOString(),
         networkResult, originCode,
       }
@@ -146,141 +124,224 @@ export default function NewsInput() {
     runAnalysis(text)
   }
 
+  const handleKey = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      if (tab === 'news') handleNewsSubmit()
+      else handleStockSubmit()
+    }
+  }
+
   return (
-    <div className="card overflow-hidden">
-      {/* Tabs */}
-      <div className="flex" style={{ borderBottom: '1px solid var(--b1)' }}>
-        {([
-          { id: 'news',  label: 'تحليل خبر' },
-          { id: 'stock', label: 'بحث سهم' },
-        ] as { id: Tab; label: string }[]).map(t => {
-          const active = tab === t.id
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="flex-1 py-3 px-4 text-[13px] transition-colors relative"
-              style={{
-                color:      active ? 'var(--tx)' : 'var(--t2)',
-                background: active ? 'transparent' : 'var(--bg3)',
-                fontWeight: active ? 500 : 400,
-              }}
-            >
-              {t.label}
-              {active && (
-                <div
-                  className="absolute bottom-[-1px] left-0 right-0 h-[2px]"
-                  style={{ background: 'var(--ac)' }}
-                />
-              )}
-            </button>
-          )
-        })}
+    <div onKeyDown={handleKey}>
+      {/* ═══ التبويبات ═══ */}
+      <div className="flex" style={{ borderBottom: '1px solid var(--ink)' }}>
+        <button
+          onClick={() => setTab('news')}
+          className="flex items-center transition-colors relative"
+          style={{
+            padding: '20px 36px',
+            fontFamily: 'var(--sans)',
+            fontSize: '15px',
+            fontWeight: 500,
+            color: tab === 'news' ? 'var(--ink)' : 'var(--muted)',
+            background: tab === 'news' ? 'var(--cream)' : 'transparent',
+            border: 'none',
+            borderLeft: '1px solid var(--ink)',
+            cursor: 'pointer',
+            gap: '12px',
+          }}
+        >
+          {tab === 'news' && (
+            <span
+              className="absolute right-0"
+              style={{ top: '-1px', width: '100%', height: '3px', background: 'var(--ink)' }}
+            />
+          )}
+          <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: tab === 'news' ? 'var(--amber-deep)' : 'var(--muted)' }}>
+            01
+          </span>
+          <span>إدخال الخبر</span>
+        </button>
+
+        <button
+          onClick={() => setTab('stock')}
+          className="flex items-center transition-colors relative"
+          style={{
+            padding: '20px 36px',
+            fontFamily: 'var(--sans)',
+            fontSize: '15px',
+            fontWeight: 500,
+            color: tab === 'stock' ? 'var(--ink)' : 'var(--muted)',
+            background: tab === 'stock' ? 'var(--cream)' : 'transparent',
+            border: 'none',
+            borderLeft: '1px solid var(--ink)',
+            cursor: 'pointer',
+            gap: '12px',
+          }}
+        >
+          {tab === 'stock' && (
+            <span
+              className="absolute right-0"
+              style={{ top: '-1px', width: '100%', height: '3px', background: 'var(--ink)' }}
+            />
+          )}
+          <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: tab === 'stock' ? 'var(--amber-deep)' : 'var(--muted)' }}>
+            02
+          </span>
+          <span>بحث بالسهم</span>
+        </button>
+
+        <div
+          className="flex items-center"
+          style={{
+            marginRight: 'auto',
+            padding: '0 36px',
+            gap: '16px',
+            fontFamily: 'var(--sans-lat)',
+            fontSize: '11px',
+            color: 'var(--muted)',
+            letterSpacing: '0.1em',
+          }}
+        >
+          <span>NEWS SENTIMENT ENGINE · V2.4</span>
+        </div>
       </div>
 
-      <div className="p-5">
+      {/* ═══ محتوى الإدخال ═══ */}
+      <div style={{ padding: '40px 44px' }}>
 
-        {/* ─── Tab 1: News ─── */}
         {tab === 'news' && (
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="section-label">نص الخبر</span>
-                <span className="text-[11px] mono-num" style={{ color: 'var(--t3)' }}>
-                  {inputText.length} / 2000
+          <>
+            {/* ═══ منطقة النص ═══ */}
+            <textarea
+              value={inputText}
+              onChange={e => setInput(e.target.value)}
+              placeholder="الصق نص الخبر هنا، أو عنوان مقال، أو تصريح رسمي..."
+              maxLength={2000}
+              dir="rtl"
+              style={{
+                width: '100%',
+                minHeight: '160px',
+                padding: 0,
+                paddingBottom: '24px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid var(--rule)',
+                color: 'var(--ink)',
+                fontFamily: 'var(--sans)',
+                fontSize: '24px',
+                fontWeight: 300,
+                lineHeight: 1.55,
+                resize: 'none',
+                letterSpacing: '-0.015em',
+                outline: 'none',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderBottomColor = 'var(--ink)')}
+              onBlur={(e) => (e.currentTarget.style.borderBottomColor = 'var(--rule)')}
+            />
+
+            {/* ═══ صف Meta: badges + char count ═══ */}
+            <div className="flex items-center justify-between" style={{ marginTop: '16px' }}>
+              <div className="flex" style={{ gap: '10px' }}>
+                <span style={{
+                  fontFamily: 'var(--sans-lat)',
+                  fontSize: '10px',
+                  fontWeight: 500,
+                  color: 'var(--muted)',
+                  letterSpacing: '0.1em',
+                  padding: '4px 8px',
+                  background: 'var(--cream-deep)',
+                }}>
+                  AR · عربي
+                </span>
+                <span style={{
+                  fontFamily: 'var(--sans-lat)',
+                  fontSize: '10px',
+                  fontWeight: 500,
+                  color: 'var(--muted)',
+                  letterSpacing: '0.1em',
+                  padding: '4px 8px',
+                  background: 'var(--cream-deep)',
+                }}>
+                  نص حر
                 </span>
               </div>
-              <textarea
-                value={inputText}
-                onChange={e => setInput(e.target.value)}
-                placeholder="الصق نص الخبر هنا، أو عنوان مقال، أو تصريح رسمي..."
-                maxLength={2000}
-                rows={5}
-                className="w-full p-3 text-[14px] leading-relaxed"
-                style={{
-                  background:   '#fff',
-                  border:       '1px solid var(--b2)',
-                  borderRadius: 'var(--r-lg)',
-                  resize:       'vertical',
-                  fontFamily:   'var(--sans)',
-                  color:        'var(--tx)',
-                }}
-              />
-            </div>
-
-            {/* Examples */}
-            <div>
-              <div className="section-label mb-2">أمثلة جاهزة</div>
-              <div className="flex flex-wrap gap-1.5">
-                {EXAMPLES.map(ex => (
-                  <button
-                    key={ex.label}
-                    onClick={() => setInput(ex.text)}
-                    className="px-2.5 py-1 text-[11px] rounded transition-colors"
-                    style={{
-                      background: 'var(--bg3)',
-                      color:      'var(--t2)',
-                      border:     '1px solid var(--b1)',
-                    }}
-                  >
-                    {ex.label}
-                  </button>
-                ))}
+              <div style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '11px',
+                color: 'var(--muted)',
+              }}>
+                <strong style={{ color: 'var(--ink)', fontWeight: 500 }}>{inputText.length}</strong> / 2,000 حرف
               </div>
             </div>
 
-            {/* AI toggle */}
-            {pro && (
-              <label
-                className="flex items-center gap-2 p-2.5 rounded cursor-pointer"
-                style={{
-                  background: useAI ? 'var(--ac2)' : 'var(--bg3)',
-                  border:     `1px solid ${useAI ? 'var(--ac)' : 'var(--b1)'}`,
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={useAI}
-                  onChange={e => setUseAI(e.target.checked)}
-                  className="w-3.5 h-3.5"
-                  style={{ accentColor: 'var(--ac)' }}
-                />
-                <div className="flex-1">
-                  <div className="text-[13px] font-medium" style={{ color: 'var(--tx)' }}>
-                    تعزيز بـ Claude AI
-                  </div>
-                  <div className="text-[11px]" style={{ color: 'var(--t3)' }}>
-                    تحليل مفصّل + رؤى ذكية
-                  </div>
-                </div>
-                <span className="tag tag-ac">PRO</span>
-              </label>
-            )}
-
-            <button
-              onClick={handleNewsSubmit}
-              disabled={isLoading || inputText.trim().length < 15}
-              className="w-full py-3 rounded font-medium text-[14px] transition-all"
+            {/* ═══ صف الإعدادات: MARKET / DEPTH / SOURCE ═══ */}
+            <div
+              className="flex"
               style={{
-                background: isLoading || inputText.trim().length < 15
-                  ? 'var(--bg4)'
-                  : 'var(--tx)',
-                color: isLoading || inputText.trim().length < 15
-                  ? 'var(--t3)'
-                  : 'var(--bg)',
-                cursor: isLoading || inputText.trim().length < 15 ? 'not-allowed' : 'pointer',
+                marginTop: '28px',
+                paddingTop: '24px',
+                borderTop: '1px solid var(--rule)',
               }}
             >
-              {isLoading ? 'جارٍ القياس…' : 'قياس اتجاه الخبر ←'}
-            </button>
-          </div>
+              <SettingItem labelEn="MARKET" value="السوق السعودي" first />
+              <SettingItem labelEn="DEPTH" value="3 موجات" />
+              <SettingItem labelEn="SOURCE" value="نص حر" last />
+            </div>
+
+            {/* ═══ صف الـ RUN ═══ */}
+            <div className="flex items-center justify-between" style={{ marginTop: '32px' }}>
+              <span style={{
+                fontSize: '12px',
+                color: 'var(--muted)',
+                fontFamily: 'var(--sans-lat)',
+              }}>
+                اضغط <Kbd>⌘</Kbd> <Kbd>↵</Kbd> للقياس السريع
+              </span>
+
+              <button
+                onClick={handleNewsSubmit}
+                disabled={isLoading || inputText.trim().length < 15}
+                className="inline-flex items-center transition-colors"
+                style={{
+                  gap: '16px',
+                  padding: '16px 32px',
+                  background: 'var(--ink)',
+                  border: 'none',
+                  color: 'var(--cream)',
+                  fontFamily: 'var(--sans)',
+                  fontSize: '15px',
+                  fontWeight: 500,
+                  cursor: isLoading || inputText.trim().length < 15 ? 'not-allowed' : 'pointer',
+                  opacity: isLoading || inputText.trim().length < 15 ? 0.6 : 1,
+                }}
+              >
+                <span>{isLoading ? 'جارٍ القياس…' : 'قياس اتجاه الخبر'}</span>
+                <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                  <path d="M1 5 H 16 M 11 1 L 16 5 L 11 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+                </svg>
+              </button>
+            </div>
+          </>
         )}
 
-        {/* ─── Tab 2: Stock ─── */}
+        {/* ═══ Tab 2: بحث بالسهم ═══ */}
         {tab === 'stock' && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div ref={dropRef}>
-              <span className="section-label block mb-2">السهم</span>
+              <div
+                style={{
+                  fontFamily: 'var(--sans-lat)',
+                  fontSize: '10px',
+                  fontWeight: 500,
+                  color: 'var(--muted)',
+                  letterSpacing: '0.15em',
+                  marginBottom: '12px',
+                }}
+              >
+                STOCK · السهم
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -288,22 +349,26 @@ export default function NewsInput() {
                   onChange={e => { setSearch(e.target.value); setSelected(null); setShowDrop(true) }}
                   onFocus={() => setShowDrop(true)}
                   placeholder="ابحث بالرمز أو الاسم (مثال: 2222، أرامكو، البنوك)"
-                  className="w-full p-3 text-[14px]"
                   style={{
-                    background:   '#fff',
-                    border:       '1px solid var(--b2)',
-                    borderRadius: 'var(--r-lg)',
-                    color:        'var(--tx)',
+                    width: '100%',
+                    padding: '14px 0',
+                    fontSize: '18px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: '1px solid var(--rule)',
+                    color: 'var(--ink)',
+                    outline: 'none',
                   }}
                 />
                 {showDrop && filtered.length > 0 && (
                   <div
-                    className="absolute top-full left-0 right-0 mt-1 max-h-[320px] overflow-y-auto z-20"
+                    className="absolute top-full left-0 right-0 z-20 overflow-y-auto"
                     style={{
-                      background:   '#fff',
-                      border:       '1px solid var(--b2)',
-                      borderRadius: 'var(--r-lg)',
-                      boxShadow:    '0 4px 16px rgba(15,15,15,0.08)',
+                      marginTop: '4px',
+                      maxHeight: '320px',
+                      background: '#fff',
+                      border: '1px solid var(--rule)',
+                      boxShadow: '0 4px 16px rgba(15,15,15,0.08)',
                     }}
                   >
                     {filtered.map(s => {
@@ -317,33 +382,47 @@ export default function NewsInput() {
                             setSelected(s); setSearch(''); setShowDrop(false); setError(null)
                           }}
                           disabled={locked}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-right transition-colors hover:bg-[var(--bg3)]"
+                          className="w-full flex items-center gap-3 transition-colors hover:bg-[var(--cream-deep)]"
                           style={{
-                            borderBottom: '1px solid var(--b1)',
-                            opacity:      locked ? 0.45 : 1,
-                            cursor:       locked ? 'not-allowed' : 'pointer',
+                            padding: '12px 16px',
+                            textAlign: 'right',
+                            borderBottom: '1px solid var(--rule)',
+                            opacity: locked ? 0.45 : 1,
+                            cursor: locked ? 'not-allowed' : 'pointer',
+                            background: 'transparent',
+                            border: 'none',
+                            borderTop: 'none',
                           }}
                         >
-                          <span
-                            className="mono-num text-[12px] font-medium px-1.5 py-0.5 rounded"
-                            style={{
-                              background: 'var(--ac2)',
-                              color:      'var(--ac)',
-                              minWidth:   48,
-                              textAlign:  'center',
-                            }}
-                          >
+                          <span style={{
+                            fontFamily: 'var(--mono)',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            color: 'var(--muted)',
+                            background: 'var(--cream)',
+                            padding: '3px 7px',
+                            border: '1px solid var(--rule)',
+                            minWidth: 50,
+                            textAlign: 'center',
+                          }}>
                             {s.t}
                           </span>
-                          <span className="flex-1 text-[13px]" style={{ color: 'var(--tx)' }}>
+                          <span className="flex-1" style={{ fontSize: '14px', color: 'var(--ink)' }}>
                             {s.n}
                           </span>
-                          <span className="text-[11px]" style={{ color: 'var(--t3)' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
                             {s.sector}
                           </span>
                           {locked && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                              style={{ background: 'var(--ac2)', color: 'var(--ac)' }}>
+                            <span style={{
+                              fontFamily: 'var(--sans-lat)',
+                              fontSize: '9px',
+                              fontWeight: 600,
+                              padding: '3px 6px',
+                              background: 'var(--amber)',
+                              color: 'var(--ink)',
+                              letterSpacing: '0.15em',
+                            }}>
                               PRO
                             </span>
                           )}
@@ -355,62 +434,105 @@ export default function NewsInput() {
               </div>
             </div>
 
-            {selected && (
-              <div
-                className="p-3 rounded"
-                style={{ background: 'var(--bg3)', border: '1px solid var(--b1)' }}
+            <div className="flex items-center justify-between" style={{ marginTop: '40px' }}>
+              <span style={{
+                fontSize: '12px',
+                color: 'var(--muted)',
+                fontFamily: 'var(--sans-lat)',
+              }}>
+                {selected ? `محدّد: ${selected.t} — ${selected.n}` : 'اختر سهماً للقياس'}
+              </span>
+
+              <button
+                onClick={handleStockSubmit}
+                disabled={!selected || isLoading}
+                className="inline-flex items-center transition-colors"
+                style={{
+                  gap: '16px',
+                  padding: '16px 32px',
+                  background: 'var(--ink)',
+                  border: 'none',
+                  color: 'var(--cream)',
+                  fontFamily: 'var(--sans)',
+                  fontSize: '15px',
+                  fontWeight: 500,
+                  cursor: !selected || isLoading ? 'not-allowed' : 'pointer',
+                  opacity: !selected || isLoading ? 0.6 : 1,
+                }}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="mono-num text-[13px] font-medium px-2 py-0.5 rounded"
-                      style={{ background: 'var(--ac2)', color: 'var(--ac)' }}
-                    >
-                      {selected.t}
-                    </span>
-                    <span className="text-[14px] font-medium" style={{ color: 'var(--tx)' }}>
-                      {selected.n}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { setSelected(null); setSearch('') }}
-                    className="text-[18px] leading-none"
-                    style={{ color: 'var(--t3)' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="text-[11px]" style={{ color: 'var(--t2)' }}>
-                  قطاع {selected.sector}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={handleStockSubmit}
-              disabled={!selected || isLoading}
-              className="w-full py-3 rounded font-medium text-[14px] transition-all"
-              style={{
-                background: !selected || isLoading ? 'var(--bg4)' : 'var(--tx)',
-                color:      !selected || isLoading ? 'var(--t3)'  : 'var(--bg)',
-                cursor:     !selected || isLoading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isLoading ? 'جارٍ القياس…' : 'قياس وضع السهم ←'}
-            </button>
-          </div>
-        )}
-
-        {/* Free tier notice */}
-        {!pro && session && (
-          <div
-            className="mt-4 p-2.5 rounded text-[11px] text-center"
-            style={{ background: 'var(--ac2)', color: 'var(--ac)' }}
-          >
-            النسخة المجانية: تحليل أرامكو (2222) فقط · ترقية PRO لفك كل الأسهم
+                <span>{isLoading ? 'جارٍ القياس…' : 'قياس وضع السهم'}</span>
+                <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                  <path d="M1 5 H 16 M 11 1 L 16 5 L 11 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+/* ═══ مكوّن إعداد فردي (MARKET / DEPTH / SOURCE) ═══ */
+function SettingItem({
+  labelEn, value, first, last,
+}: {
+  labelEn: string
+  value:   string
+  first?:  boolean
+  last?:   boolean
+}) {
+  return (
+    <div
+      className="flex-1"
+      style={{
+        paddingLeft:  last  ? 0 : '24px',
+        marginLeft:   last  ? 0 : '24px',
+        paddingRight: first ? 0 : undefined,
+        borderLeft:   last  ? 'none' : '1px solid var(--rule)',
+      }}
+    >
+      <div style={{
+        fontFamily: 'var(--sans-lat)',
+        fontSize: '10px',
+        fontWeight: 500,
+        color: 'var(--muted)',
+        letterSpacing: '0.15em',
+        marginBottom: '8px',
+      }}>
+        {labelEn}
+      </div>
+      <div className="flex items-center" style={{
+        gap: '8px',
+        fontSize: '15px',
+        fontWeight: 500,
+        color: 'var(--ink)',
+      }}>
+        {value}
+        <span style={{
+          width: 0,
+          height: 0,
+          borderLeft: '4px solid transparent',
+          borderRight: '4px solid transparent',
+          borderTop: '5px solid var(--ink)',
+          marginTop: '2px',
+        }} />
+      </div>
+    </div>
+  )
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd style={{
+      fontFamily: 'var(--mono)',
+      background: 'var(--cream-deep)',
+      border: '1px solid var(--rule)',
+      padding: '2px 6px',
+      fontSize: '11px',
+      color: 'var(--ink)',
+    }}>
+      {children}
+    </kbd>
   )
 }
