@@ -1,6 +1,5 @@
 'use client'
 
-/* ═══ حالة التحميل ═══ */
 export default function LoadingResult() {
   return (
     <aside
