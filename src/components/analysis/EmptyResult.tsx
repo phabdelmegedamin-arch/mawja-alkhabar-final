@@ -1,6 +1,5 @@
 'use client'
 
-/* ═══ حالة فارغة قبل التحليل ═══ */
 export default function EmptyResult() {
   return (
     <aside
