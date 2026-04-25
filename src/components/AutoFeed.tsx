@@ -13,9 +13,10 @@ interface FeedItem {
   sector?: string
   sectorIcon?: string
   isNew?: boolean
+  isDemo?: boolean
 }
 
-const DEMO_NEWS: Omit<FeedItem, 'id' | 'fetchedAt' | 'isNew'>[] = [
+const DEMO_NEWS: Omit<FeedItem, 'id' | 'fetchedAt' | 'isNew' | 'isDemo'>[] = [
   { title:'أرامكو السعودية تعلن نتائج الربع الأول وتحافظ على توزيعات الأرباح', desc:'أعلنت أرامكو عن نتائجها المالية مع الحفاظ على مستوى توزيعات الأرباح', source:'تجريبي', link:'', dir:'pos', score:72, sector:'الطاقة', sectorIcon:'🛢️' },
   { title:'البنوك السعودية ترفع أسعار الفائدة على القروض العقارية', desc:'رفعت معظم البنوك الكبرى أسعار الفائدة على القروض العقارية بنسبة 0.25 نقطة', source:'تجريبي', link:'', dir:'neg', score:55, sector:'البنوك', sectorIcon:'🏦' },
   { title:'سابك تعلن عن خطط توسعة في البتروكيماويات بتكلفة 3 مليارات ريال', desc:'أعلنت سابك عن خطط لتوسعة طاقتها الإنتاجية في قطاع البتروكيماويات', source:'تجريبي', link:'', dir:'pos', score:65, sector:'الطاقة', sectorIcon:'🛢️' },
@@ -25,16 +26,18 @@ const DEMO_NEWS: Omit<FeedItem, 'id' | 'fetchedAt' | 'isNew'>[] = [
   { title:'تراجع حركة التداول في ظل ترقب بيانات التضخم الأمريكي', desc:'شهد سوق الأسهم السعودية تراجعاً في حجم التداول مع ترقب المستثمرين للبيانات الأمريكية', source:'تجريبي', link:'', dir:'neu', score:22, sector:'عام', sectorIcon:'📊' },
 ]
 
-// ✅ إصلاح: قواميس NLP بدل Math.random()
+// قواميس NLP لتحليل المشاعر
 const POS_WORDS = [
   'ارتفع','ارتفعت','نما','نمو','أرباح','توزيع','إطلاق','افتتاح',
   'تجاوز','قفز','شراكة','صفقة','تحسن','طفرة','انتعاش','نجح',
   'زيادة','توسعة','مشروع','استثمار','دعم','تحفيز','ازدهار',
+  'صعود','مكاسب','إنجاز','تعافي','نجاح','فوز','عقد',
 ]
 const NEG_WORDS = [
   'انخفض','انخفضت','تراجع','تراجعت','هبط','هبطت','خسارة','خسائر',
   'أزمة','غرامة','تسريح','انهيار','تضرر','ركود','ضغط','تدهور',
   'إفلاس','انكماش','عقوبات','فشل','رفع الفائدة','تشديد',
+  'نزول','ضعف','تباطؤ','مخاوف','قلق','هزيمة','تأخر','تعثر',
 ]
 
 function analyzeSentiment(text: string): { dir: 'pos' | 'neg' | 'neu'; score: number } {
@@ -44,6 +47,22 @@ function analyzeSentiment(text: string): { dir: 'pos' | 'neg' | 'neu'; score: nu
   const score = Math.min(92, 20 + Math.max(ps, ns) * 14)
   const dir: 'pos' | 'neg' | 'neu' = ps > ns ? 'pos' : ns > ps ? 'neg' : 'neu'
   return { dir, score }
+}
+
+/* ─── تخمين القطاع بناءً على الكلمات في النص ─── */
+function guessSector(text: string): { sector: string; sectorIcon: string } {
+  const t = text.toLowerCase()
+  if (/أرامكو|نفط|بترول|طاقة|غاز|سابك|كيمياء|بتروكيماو/.test(t)) return { sector: 'الطاقة',     sectorIcon: '🛢️' }
+  if (/بنك|راجحي|الأهلي|الاتحاد|البلاد|إنماء|مصرف|تمويل|قرض|فائدة/.test(t)) return { sector: 'البنوك',    sectorIcon: '🏦' }
+  if (/stc|اتصالات|موبايلي|زين|إنترنت|الجيل/.test(t)) return { sector: 'الاتصالات',  sectorIcon: '📡' }
+  if (/عقار|إسكان|تطوير|مدن|مشاريع/.test(t)) return { sector: 'العقارات',   sectorIcon: '🏗️' }
+  if (/تأمين|تكافل|بوبا|ميدغلف/.test(t)) return { sector: 'التأمين',    sectorIcon: '🛡️' }
+  if (/المراعي|سدافكو|نديك|أغذية|غذاء/.test(t)) return { sector: 'الأغذية',    sectorIcon: '🍞' }
+  if (/مستشفى|دواء|صحة|طبي|الحبيب|المواساة/.test(t)) return { sector: 'الرعاية الصحية', sectorIcon: '🏥' }
+  if (/تجزئة|أسواق|العثيم|بن داود|نهدي|الدواء/.test(t)) return { sector: 'التجزئة',   sectorIcon: '🛒' }
+  if (/سيارات|نقل|طيران|طيار|شحن|لوجستي/.test(t)) return { sector: 'النقل',      sectorIcon: '🚚' }
+  if (/تداول|مؤشر|تاسي|أسهم|سوق|بورصة/.test(t)) return { sector: 'السوق',      sectorIcon: '📊' }
+  return { sector: 'السوق السعودي', sectorIcon: '📊' }
 }
 
 function hashStr(s: string): string {
@@ -64,48 +83,57 @@ function timeAgo(ts: number): string {
 }
 
 export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: string) => void }) {
-  const [items, setItems]   = useState<FeedItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter]   = useState<'all' | 'pos' | 'neg' | 'neu'>('all')
+  const [items, setItems]       = useState<FeedItem[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [filter, setFilter]     = useState<'all' | 'pos' | 'neg' | 'neu'>('all')
+  const [usingDemo, setUsingDemo] = useState(false)
 
   const loadNews = useCallback(async () => {
     setLoading(true)
     try {
-      const url = 'https://api.rss2json.com/v1/api.json?rss_url=' +
-        encodeURIComponent('https://www.argaam.com/ar/rss/') + '&count=15'
-      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) })
+      // يستخدم endpoint /api/news المُصلَح (Google News + أرقام الصحيح + بدائل)
+      const resp = await fetch('/api/news', { signal: AbortSignal.timeout(12000) })
       if (resp.ok) {
         const data = await resp.json()
-        if (data.status === 'ok' && data.items?.length) {
-          const fetched: FeedItem[] = data.items.slice(0, 12).map((it: any) => {
-            const title = it.title?.replace(/<[^>]+>/g, '').trim() || ''
-            const desc  = (it.description || '').replace(/<[^>]+>/g, '').trim().slice(0, 150)
-            // ✅ تحليل حقيقي بدل Math.random()
+        if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
+          const fetched: FeedItem[] = data.data.slice(0, 15).map((it: any) => {
+            const title = (it.title || '').trim()
+            const desc  = (it.desc  || '').trim().slice(0, 200)
             const { dir, score } = analyzeSentiment(title + ' ' + desc)
+            const { sector, sectorIcon } = guessSector(title + ' ' + desc)
             return {
-              id: hashStr(title),
-              title, desc, source: 'أرقام',
-              link:      it.link || '',
-              fetchedAt: new Date(it.pubDate || Date.now()).getTime(),
+              id:         it.id || hashStr(title),
+              title,
+              desc,
+              source:     it.source || 'مصدر',
+              link:       it.link   || '',
+              fetchedAt:  it.fetchedAt || Date.now(),
               dir, score,
-              sector:     'السوق السعودي',
-              sectorIcon: '📊',
+              sector,
+              sectorIcon: it.sourceIcon || sectorIcon,
               isNew:      true,
+              isDemo:     false,
             }
           })
           setItems(fetched)
+          setUsingDemo(false)
           setLoading(false)
           return
         }
       }
-    } catch {}
-    // Fallback to demo data
+    } catch (err) {
+      console.error('AutoFeed: failed to load real news', err)
+    }
+
+    // ─── Fallback إلى البيانات التجريبية مع تنبيه واضح ───
     setItems(DEMO_NEWS.map((d, i) => ({
       ...d,
       id:        hashStr(d.title + i),
       fetchedAt: Date.now() - i * 180000,
       isNew:     false,
+      isDemo:    true,
     })))
+    setUsingDemo(true)
     setLoading(false)
   }, [])
 
@@ -128,11 +156,40 @@ export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: strin
         <span className="text-xs text-tx-3 mr-auto">{items.length} خبر</span>
         <button
           onClick={loadNews}
-          className="text-xs text-tx-3 border border-b-1 rounded px-2 py-1 hover:text-ac hover:border-ac transition-all"
+          disabled={loading}
+          className="text-xs text-tx-3 border border-b-1 rounded px-2 py-1 hover:text-ac hover:border-ac transition-all disabled:opacity-50"
         >
-          ↺ تحديث
+          {loading ? '⏳ جارٍ…' : '↺ تحديث'}
         </button>
       </div>
+
+      {/* تنبيه عند استخدام البيانات التجريبية */}
+      {usingDemo && !loading && (
+        <div
+          className="px-4 py-2 border-b border-b-1 text-xs flex items-center gap-2"
+          style={{ background: 'var(--yl2, #fef3c7)', color: 'var(--yl-dark, #92400e)' }}
+        >
+          <span style={{ fontSize: '14px' }}>⚠️</span>
+          <span>
+            تعذّر الاتصال بمصادر الأخبار الحقيقية — يتم عرض <strong>بيانات تجريبية</strong> مؤقتاً.
+            <button
+              onClick={loadNews}
+              style={{
+                marginRight: '6px',
+                textDecoration: 'underline',
+                background: 'transparent',
+                border: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                font: 'inherit',
+                padding: 0,
+              }}
+            >
+              إعادة المحاولة
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Stats */}
       {!loading && items.length > 0 && (
@@ -191,7 +248,16 @@ export default function AutoFeed({ onSelectNews }: { onSelectNews?: (text: strin
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold leading-snug mb-1 line-clamp-2">{item.title}</div>
                 <div className="flex items-center gap-2 text-xs text-tx-3 flex-wrap">
-                  <span className="bg-bg4 border border-b-1 px-1.5 py-0.5 rounded text-xs">{item.source}</span>
+                  <span
+                    className="border px-1.5 py-0.5 rounded text-xs"
+                    style={{
+                      background: item.isDemo ? 'var(--yl2, #fef3c7)' : 'var(--bg4)',
+                      borderColor: item.isDemo ? 'var(--yl, #f59e0b)' : 'var(--b1)',
+                      color: item.isDemo ? 'var(--yl-dark, #92400e)' : 'inherit',
+                    }}
+                  >
+                    {item.source}
+                  </span>
                   {item.sectorIcon && <span>{item.sectorIcon} {item.sector}</span>}
                   <span className="mr-auto font-mono">{timeAgo(item.fetchedAt)}</span>
                 </div>
