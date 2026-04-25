@@ -19,24 +19,21 @@ const SA_STOCKS = (() => {
 })()
 
 /* ═══════════════════════════════════════════
-   Arabic text normalization for matching
+   Arabic text normalization
    ═══════════════════════════════════════════ */
 function normalizeArabic(s: string): string {
   return s
-    .replace(/[\u064B-\u065F\u0670]/g, '') // remove diacritics (tashkeel)
-    .replace(/[إأآا]/g, 'ا')               // normalize alef variants
-    .replace(/ى/g, 'ي')                    // normalize ya
-    .replace(/ؤ/g, 'و')                    // normalize waw-hamza
-    .replace(/ئ/g, 'ي')                    // normalize ya-hamza
-    .replace(/ة/g, 'ه')                    // ta marbuta -> ha
-    .replace(/\s+/g, ' ')                  // collapse whitespace
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ')
     .toLowerCase()
     .trim()
 }
 
-/* ═══════════════════════════════════════════
-   Stock news item shape
-   ═══════════════════════════════════════════ */
 interface StockNewsItem {
   id: string
   title: string
@@ -45,16 +42,40 @@ interface StockNewsItem {
   source: string
   pubDate: string
   fetchedAt: number
-  matchType: 'direct' | 'sector' // direct = ticker/name match, sector = keyword match
+  matchType: 'direct' | 'sector'
 }
 
-/* ═══════════════════════════════════════════
-   News fetching + filtering for a given stock
-   ═══════════════════════════════════════════ */
 interface FetchNewsResult {
   matches: StockNewsItem[]
   totalFetched: number
   diagnostics?: Array<{ source: string; count: number; via: string; status: string }>
+}
+
+/* كلمات تدل على سياق مالي */
+const FINANCIAL_CONTEXT_WORDS = [
+  'سهم', 'اسهم', 'أسهم', 'تداول', 'تاسي', 'بورصة', 'مؤشر', 'سوق المال',
+  'ارباح', 'أرباح', 'ربح', 'خسارة', 'خسائر', 'توزيعات',
+  'افصاح', 'إفصاح', 'اكتتاب', 'مكتتب', 'الجمعية العمومية', 'مساهمين',
+  'الربع', 'النصف', 'سنوي', 'مالية', 'ايرادات', 'إيرادات', 'صافي الربح',
+  'النتائج المالية', 'البيانات المالية', 'العمومية', 'مجلس الإدارة',
+  'هيئة السوق', 'مكاسب', 'سعر السهم', 'حصة السهم', 'ربحية السهم',
+  'tasi', 'tadawul', 'stock', 'shares',
+]
+
+/* كلمات تدل على سياق غير مالي */
+const NON_FINANCIAL_HINTS = [
+  'قناة', 'القناة', 'نت', 'الإنجليزية', 'الانجليزية', 'الرياضية',
+  'مباراة', 'هدف', 'لاعب', 'منتخب', 'كرة', 'دوري',
+  'مسلسل', 'فيلم', 'ممثل', 'ممثلة', 'أغنية', 'فنان',
+  'حادث', 'وفاة', 'جريمة', 'سرقة',
+]
+
+function hasFinancialContext(normText: string): boolean {
+  return FINANCIAL_CONTEXT_WORDS.some(w => normText.includes(normalizeArabic(w)))
+}
+
+function hasNonFinancialHint(normText: string): boolean {
+  return NON_FINANCIAL_HINTS.some(w => normText.includes(normalizeArabic(w)))
 }
 
 async function fetchNewsForStock(stock: {
@@ -63,12 +84,11 @@ async function fetchNewsForStock(stock: {
   sector: string
   sectorKey: string
 }, opts: { debug?: boolean; bypassCache?: boolean } = {}): Promise<FetchNewsResult> {
-  // ابحث عن السهم تحديداً عبر Google News + المصادر الإضافية
-  // مثال: "أرامكو السعودية OR 2222"
-  const q = `${stock.n} OR ${stock.t}`
   const params = new URLSearchParams()
-  params.set('q', q)
-  if (opts.debug) params.set('debug', '1')
+  params.set('q', stock.n)
+  params.set('ticker', stock.t)
+  if (opts.debug)       params.set('debug', '1')
+  if (opts.bypassCache) params.set('refresh', '1')
   const url = `/api/news?${params.toString()}`
 
   const res = await fetch(url, opts.bypassCache ? { cache: 'no-store' } : {})
@@ -95,25 +115,34 @@ async function fetchNewsForStock(stock: {
 
     let matchType: 'direct' | 'sector' | null = null
 
-    // 1) Direct ticker match (numeric, with non-digit boundaries)
-    if (new RegExp(`(?:^|[^0-9])${stock.t}(?:[^0-9]|$)`).test(rawText)) {
+    // ═══ القاعدة الذهبية: رمز السهم في النص = تطابق مباشر مضمون ═══
+    const tickerRegex = new RegExp(`(?:^|[^0-9])${stock.t}(?:[^0-9]|$)`)
+    if (tickerRegex.test(rawText)) {
       matchType = 'direct'
     }
-    // 2) Full normalized name match
+    // ═══ تطابق الاسم الكامل + سياق مالي + غياب سياق غير مالي ═══
     else if (normName.length >= 3 && normText.includes(normName)) {
-      matchType = 'direct'
+      if (hasFinancialContext(normText) && !hasNonFinancialHint(normText)) {
+        matchType = 'direct'
+      }
     }
-    // 3) Distinctive name fragment match
+    // ═══ تطابق جزء من الاسم + سياق مالي قوي ═══
     else if (nameFragments.some(frag => normText.includes(frag))) {
-      matchType = 'direct'
+      if (hasFinancialContext(normText) && !hasNonFinancialHint(normText)) {
+        matchType = 'direct'
+      }
     }
-    // 4) Sector keyword match (weaker signal — only kept for non-Google sources)
+    // ═══ نتائج Google News (لو وصلت لنا، فهي مفلترة بالفعل) ═══
+    else if (item.sourceId?.startsWith('gnews_q')) {
+      if (hasFinancialContext(normText) && !hasNonFinancialHint(normText)) {
+        matchType = 'direct'
+      }
+    }
+    // ═══ تطابق القطاع (إشارة ضعيفة، تتطلب سياق مالي) ═══
     else if (sectorKeywords.some(kw => normText.includes(normalizeArabic(kw)))) {
-      matchType = 'sector'
-    }
-    // 5) For Google News results: trust the search (Google already matched it)
-    else if (item.sourceId === 'gnews_q') {
-      matchType = 'direct'
+      if (hasFinancialContext(normText)) {
+        matchType = 'sector'
+      }
     }
 
     if (matchType) {
@@ -130,7 +159,6 @@ async function fetchNewsForStock(stock: {
     }
   }
 
-  // Sort: direct matches first, then by recency
   matches.sort((a, b) => {
     if (a.matchType !== b.matchType) return a.matchType === 'direct' ? -1 : 1
     return b.fetchedAt - a.fetchedAt
@@ -168,7 +196,6 @@ export default function NewsInput() {
   const [useAI, setUseAI]       = useState(pro)
   const dropRef = useRef<HTMLDivElement>(null)
 
-  /* ── Stock-news state ────────────────────── */
   const [stockNews,    setStockNews]    = useState<StockNewsItem[]>([])
   const [newsLoading,  setNewsLoading]  = useState(false)
   const [newsError,    setNewsError]    = useState<string | null>(null)
@@ -184,7 +211,6 @@ export default function NewsInput() {
     return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  /* ── Auto-fetch news whenever a stock is selected (or refresh) ─── */
   useEffect(() => {
     if (!selected) {
       setStockNews([])
@@ -297,18 +323,15 @@ export default function NewsInput() {
 
   const handleNewsSubmit = () => runAnalysis(inputText)
 
-  /* عند الضغط على خبر متعلق بالسهم → نُشغّل التحليل عليه */
   const handleNewsClick = (item: StockNewsItem) => {
     const fullText = `${item.title}. ${item.desc}`.trim()
     setInput(fullText)
     runAnalysis(fullText)
-    // اسحب الانتباه نحو نتيجة التحليل
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
-  /* تحليل عام للسهم بدون خبر معيّن (احتياطي) */
   const handleGenericStockAnalysis = () => {
     if (!selected) { setError('اختر سهماً أولاً'); return }
     const text = `تحليل أداء سهم ${selected.n} (${selected.t}) في قطاع ${selected.sector}.`
@@ -326,169 +349,99 @@ export default function NewsInput() {
 
   return (
     <div onKeyDown={handleKey}>
-      {/* ═══ التبويبات ═══ */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .ni-tab { padding: 20px 36px; font-size: 15px; gap: 12px; }
+        .ni-tab-num { font-size: 11px; }
+        .ni-tagline { padding: 0 36px; font-size: 11px; display: flex; }
+        .ni-content { padding: 40px 44px; }
+        .ni-input-text { font-size: 24px; }
+        @media (max-width: 768px) {
+          .ni-tab { padding: 14px 16px; font-size: 13px; gap: 8px; flex: 1; justify-content: center; }
+          .ni-tab-num { font-size: 10px; }
+          .ni-tagline { display: none !important; }
+          .ni-content { padding: 24px 16px; }
+          .ni-input-text { font-size: 18px; }
+        }
+      `}} />
+
       <div className="flex" style={{ borderBottom: '1px solid var(--ink)' }}>
         <button
           onClick={() => setTab('news')}
-          className="flex items-center transition-colors relative"
+          className="ni-tab flex items-center transition-colors relative"
           style={{
-            padding: '20px 36px',
-            fontFamily: 'var(--sans)',
-            fontSize: '15px',
-            fontWeight: 500,
+            fontFamily: 'var(--sans)', fontWeight: 500,
             color: tab === 'news' ? 'var(--ink)' : 'var(--muted)',
             background: tab === 'news' ? 'var(--cream)' : 'transparent',
-            border: 'none',
-            borderLeft: '1px solid var(--ink)',
-            cursor: 'pointer',
-            gap: '12px',
+            border: 'none', borderLeft: '1px solid var(--ink)', cursor: 'pointer',
           }}
         >
           {tab === 'news' && (
-            <span
-              className="absolute right-0"
-              style={{ top: '-1px', width: '100%', height: '3px', background: 'var(--ink)' }}
-            />
+            <span className="absolute right-0" style={{ top: '-1px', width: '100%', height: '3px', background: 'var(--ink)' }} />
           )}
-          <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: tab === 'news' ? 'var(--amber-deep)' : 'var(--muted)' }}>
-            01
-          </span>
+          <span className="ni-tab-num" style={{ fontFamily: 'var(--mono)', fontWeight: 500, color: tab === 'news' ? 'var(--amber-deep)' : 'var(--muted)' }}>01</span>
           <span>إدخال الخبر</span>
         </button>
 
         <button
           onClick={() => setTab('stock')}
-          className="flex items-center transition-colors relative"
+          className="ni-tab flex items-center transition-colors relative"
           style={{
-            padding: '20px 36px',
-            fontFamily: 'var(--sans)',
-            fontSize: '15px',
-            fontWeight: 500,
+            fontFamily: 'var(--sans)', fontWeight: 500,
             color: tab === 'stock' ? 'var(--ink)' : 'var(--muted)',
             background: tab === 'stock' ? 'var(--cream)' : 'transparent',
-            border: 'none',
-            borderLeft: '1px solid var(--ink)',
-            cursor: 'pointer',
-            gap: '12px',
+            border: 'none', borderLeft: '1px solid var(--ink)', cursor: 'pointer',
           }}
         >
           {tab === 'stock' && (
-            <span
-              className="absolute right-0"
-              style={{ top: '-1px', width: '100%', height: '3px', background: 'var(--ink)' }}
-            />
+            <span className="absolute right-0" style={{ top: '-1px', width: '100%', height: '3px', background: 'var(--ink)' }} />
           )}
-          <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: tab === 'stock' ? 'var(--amber-deep)' : 'var(--muted)' }}>
-            02
-          </span>
+          <span className="ni-tab-num" style={{ fontFamily: 'var(--mono)', fontWeight: 500, color: tab === 'stock' ? 'var(--amber-deep)' : 'var(--muted)' }}>02</span>
           <span>بحث بالسهم</span>
         </button>
 
-        <div
-          className="flex items-center"
-          style={{
-            marginRight: 'auto',
-            padding: '0 36px',
-            gap: '16px',
-            fontFamily: 'var(--sans-lat)',
-            fontSize: '11px',
-            color: 'var(--muted)',
-            letterSpacing: '0.1em',
-          }}
-        >
+        <div className="ni-tagline items-center" style={{ marginRight: 'auto', gap: '16px', fontFamily: 'var(--sans-lat)', color: 'var(--muted)', letterSpacing: '0.1em' }}>
           <span>NEWS SENTIMENT ENGINE · V2.4</span>
         </div>
       </div>
 
-      {/* ═══ محتوى الإدخال ═══ */}
-      <div style={{ padding: '40px 44px' }}>
-
+      <div className="ni-content">
         {tab === 'news' && (
           <>
-            {/* ═══ منطقة النص ═══ */}
             <textarea
               value={inputText}
               onChange={e => setInput(e.target.value)}
               placeholder="الصق نص الخبر هنا، أو عنوان مقال، أو تصريح رسمي..."
               maxLength={2000}
               dir="rtl"
+              className="ni-input-text"
               style={{
-                width: '100%',
-                minHeight: '160px',
-                padding: 0,
-                paddingBottom: '24px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: '1px solid var(--rule)',
-                color: 'var(--ink)',
-                fontFamily: 'var(--sans)',
-                fontSize: '24px',
-                fontWeight: 300,
-                lineHeight: 1.55,
-                resize: 'none',
-                letterSpacing: '-0.015em',
-                outline: 'none',
+                width: '100%', minHeight: '160px', padding: 0, paddingBottom: '24px',
+                background: 'transparent', border: 'none', borderBottom: '1px solid var(--rule)',
+                color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 300,
+                lineHeight: 1.55, resize: 'none', letterSpacing: '-0.015em', outline: 'none',
               }}
               onFocus={(e) => (e.currentTarget.style.borderBottomColor = 'var(--ink)')}
               onBlur={(e) => (e.currentTarget.style.borderBottomColor = 'var(--rule)')}
             />
 
-            {/* ═══ صف Meta: badges + char count ═══ */}
             <div className="flex items-center justify-between" style={{ marginTop: '16px' }}>
               <div className="flex" style={{ gap: '10px' }}>
-                <span style={{
-                  fontFamily: 'var(--sans-lat)',
-                  fontSize: '10px',
-                  fontWeight: 500,
-                  color: 'var(--muted)',
-                  letterSpacing: '0.1em',
-                  padding: '4px 8px',
-                  background: 'var(--cream-deep)',
-                }}>
-                  AR · عربي
-                </span>
-                <span style={{
-                  fontFamily: 'var(--sans-lat)',
-                  fontSize: '10px',
-                  fontWeight: 500,
-                  color: 'var(--muted)',
-                  letterSpacing: '0.1em',
-                  padding: '4px 8px',
-                  background: 'var(--cream-deep)',
-                }}>
-                  نص حر
-                </span>
+                <span style={{ fontFamily: 'var(--sans-lat)', fontSize: '10px', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.1em', padding: '4px 8px', background: 'var(--cream-deep)' }}>AR · عربي</span>
+                <span style={{ fontFamily: 'var(--sans-lat)', fontSize: '10px', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.1em', padding: '4px 8px', background: 'var(--cream-deep)' }}>نص حر</span>
               </div>
-              <div style={{
-                fontFamily: 'var(--mono)',
-                fontSize: '11px',
-                color: 'var(--muted)',
-              }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--muted)' }}>
                 <strong style={{ color: 'var(--ink)', fontWeight: 500 }}>{inputText.length}</strong> / 2,000 حرف
               </div>
             </div>
 
-            {/* ═══ صف الإعدادات: MARKET / DEPTH / SOURCE ═══ */}
-            <div
-              className="flex"
-              style={{
-                marginTop: '28px',
-                paddingTop: '24px',
-                borderTop: '1px solid var(--rule)',
-              }}
-            >
+            <div className="flex" style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--rule)' }}>
               <SettingItem labelEn="MARKET" value="السوق السعودي" first />
               <SettingItem labelEn="DEPTH" value="3 موجات" />
               <SettingItem labelEn="SOURCE" value="نص حر" last />
             </div>
 
-            {/* ═══ صف الـ RUN ═══ */}
             <div className="flex items-center justify-between" style={{ marginTop: '32px' }}>
-              <span style={{
-                fontSize: '12px',
-                color: 'var(--muted)',
-                fontFamily: 'var(--sans-lat)',
-              }}>
+              <span style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--sans-lat)' }}>
                 اضغط <Kbd>⌘</Kbd> <Kbd>↵</Kbd> للقياس السريع
               </span>
 
@@ -497,14 +450,8 @@ export default function NewsInput() {
                 disabled={isLoading || inputText.trim().length < 15}
                 className="inline-flex items-center transition-colors"
                 style={{
-                  gap: '16px',
-                  padding: '16px 32px',
-                  background: 'var(--ink)',
-                  border: 'none',
-                  color: 'var(--cream)',
-                  fontFamily: 'var(--sans)',
-                  fontSize: '15px',
-                  fontWeight: 500,
+                  gap: '16px', padding: '16px 32px', background: 'var(--ink)', border: 'none',
+                  color: 'var(--cream)', fontFamily: 'var(--sans)', fontSize: '15px', fontWeight: 500,
                   cursor: isLoading || inputText.trim().length < 15 ? 'not-allowed' : 'pointer',
                   opacity: isLoading || inputText.trim().length < 15 ? 0.6 : 1,
                 }}
@@ -518,22 +465,10 @@ export default function NewsInput() {
           </>
         )}
 
-        {/* ═══ Tab 2: بحث بالسهم ═══ */}
         {tab === 'stock' && (
           <div className="space-y-5">
             <div ref={dropRef}>
-              <div
-                style={{
-                  fontFamily: 'var(--sans-lat)',
-                  fontSize: '10px',
-                  fontWeight: 500,
-                  color: 'var(--muted)',
-                  letterSpacing: '0.15em',
-                  marginBottom: '12px',
-                }}
-              >
-                STOCK · السهم
-              </div>
+              <div style={{ fontFamily: 'var(--sans-lat)', fontSize: '10px', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.15em', marginBottom: '12px' }}>STOCK · السهم</div>
               <div className="relative">
                 <input
                   type="text"
@@ -542,27 +477,12 @@ export default function NewsInput() {
                   onFocus={() => setShowDrop(true)}
                   placeholder="ابحث بالرمز أو الاسم (مثال: 2222، أرامكو، البنوك)"
                   style={{
-                    width: '100%',
-                    padding: '14px 0',
-                    fontSize: '18px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: '1px solid var(--rule)',
-                    color: 'var(--ink)',
-                    outline: 'none',
+                    width: '100%', padding: '14px 0', fontSize: '18px', background: 'transparent',
+                    border: 'none', borderBottom: '1px solid var(--rule)', color: 'var(--ink)', outline: 'none',
                   }}
                 />
                 {showDrop && filtered.length > 0 && (
-                  <div
-                    className="absolute top-full left-0 right-0 z-20 overflow-y-auto"
-                    style={{
-                      marginTop: '4px',
-                      maxHeight: '320px',
-                      background: '#fff',
-                      border: '1px solid var(--rule)',
-                      boxShadow: '0 4px 16px rgba(15,15,15,0.08)',
-                    }}
-                  >
+                  <div className="absolute top-full left-0 right-0 z-20 overflow-y-auto" style={{ marginTop: '4px', maxHeight: '320px', background: '#fff', border: '1px solid var(--rule)', boxShadow: '0 4px 16px rgba(15,15,15,0.08)' }}>
                     {filtered.map(s => {
                       const isFree = (FREE_TICKERS as readonly string[]).includes(s.t)
                       const locked = !pro && !isFree
@@ -576,47 +496,16 @@ export default function NewsInput() {
                           disabled={locked}
                           className="w-full flex items-center gap-3 transition-colors hover:bg-[var(--cream-deep)]"
                           style={{
-                            padding: '12px 16px',
-                            textAlign: 'right',
-                            borderBottom: '1px solid var(--rule)',
-                            opacity: locked ? 0.45 : 1,
-                            cursor: locked ? 'not-allowed' : 'pointer',
-                            background: 'transparent',
-                            border: 'none',
-                            borderTop: 'none',
+                            padding: '12px 16px', textAlign: 'right', borderBottom: '1px solid var(--rule)',
+                            opacity: locked ? 0.45 : 1, cursor: locked ? 'not-allowed' : 'pointer',
+                            background: 'transparent', border: 'none', borderTop: 'none',
                           }}
                         >
-                          <span style={{
-                            fontFamily: 'var(--mono)',
-                            fontSize: '11px',
-                            fontWeight: 500,
-                            color: 'var(--muted)',
-                            background: 'var(--cream)',
-                            padding: '3px 7px',
-                            border: '1px solid var(--rule)',
-                            minWidth: 50,
-                            textAlign: 'center',
-                          }}>
-                            {s.t}
-                          </span>
-                          <span className="flex-1" style={{ fontSize: '14px', color: 'var(--ink)' }}>
-                            {s.n}
-                          </span>
-                          <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                            {s.sector}
-                          </span>
+                          <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', fontWeight: 500, color: 'var(--muted)', background: 'var(--cream)', padding: '3px 7px', border: '1px solid var(--rule)', minWidth: 50, textAlign: 'center' }}>{s.t}</span>
+                          <span className="flex-1" style={{ fontSize: '14px', color: 'var(--ink)' }}>{s.n}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{s.sector}</span>
                           {locked && (
-                            <span style={{
-                              fontFamily: 'var(--sans-lat)',
-                              fontSize: '9px',
-                              fontWeight: 600,
-                              padding: '3px 6px',
-                              background: 'var(--amber)',
-                              color: 'var(--ink)',
-                              letterSpacing: '0.15em',
-                            }}>
-                              PRO
-                            </span>
+                            <span style={{ fontFamily: 'var(--sans-lat)', fontSize: '9px', fontWeight: 600, padding: '3px 6px', background: 'var(--amber)', color: 'var(--ink)', letterSpacing: '0.15em' }}>PRO</span>
                           )}
                         </button>
                       )
@@ -626,144 +515,56 @@ export default function NewsInput() {
               </div>
             </div>
 
-            {/* ═══════════════════════════════════════════════
-                 قائمة الأخبار المتعلقة بالسهم المختار
-                ═══════════════════════════════════════════════ */}
             {selected && (
               <div style={{ marginTop: '32px' }}>
-                <div
-                  className="flex items-center justify-between"
-                  style={{
-                    paddingBottom: '12px',
-                    borderBottom: '1px solid var(--rule)',
-                    marginBottom: '4px',
-                  }}
-                >
+                <div className="flex items-center justify-between" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--rule)', marginBottom: '4px' }}>
                   <div className="flex items-center" style={{ gap: '10px' }}>
-                    <span style={{
-                      fontFamily: 'var(--sans-lat)',
-                      fontSize: '10px',
-                      fontWeight: 500,
-                      color: 'var(--muted)',
-                      letterSpacing: '0.15em',
-                    }}>
-                      RELATED NEWS · أخبار {selected.n}
-                    </span>
+                    <span style={{ fontFamily: 'var(--sans-lat)', fontSize: '10px', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.15em' }}>RELATED NEWS · أخبار {selected.n}</span>
                     {!newsLoading && hasFetched && (
-                      <span style={{
-                        fontFamily: 'var(--mono)',
-                        fontSize: '11px',
-                        color: 'var(--muted)',
-                        background: 'var(--cream-deep)',
-                        padding: '2px 8px',
-                      }}>
-                        {stockNews.length}
-                      </span>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--muted)', background: 'var(--cream-deep)', padding: '2px 8px' }}>{stockNews.length}</span>
                     )}
                   </div>
 
                   <div className="flex items-center" style={{ gap: '14px' }}>
-                    <span style={{
-                      fontSize: '11px',
-                      color: 'var(--muted)',
-                      fontFamily: 'var(--sans-lat)',
-                    }}>
-                      اضغط على خبر لبدء التحليل
-                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: 'var(--sans-lat)' }}>اضغط على خبر لبدء التحليل</span>
                     <button
                       onClick={refreshNews}
                       disabled={newsLoading}
                       title="تحديث الأخبار"
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 10px',
-                        background: 'transparent',
-                        border: '1px solid var(--rule)',
-                        color: 'var(--ink)',
-                        fontFamily: 'var(--sans-lat)',
-                        fontSize: '11px',
-                        cursor: newsLoading ? 'wait' : 'pointer',
-                        opacity: newsLoading ? 0.5 : 1,
+                        display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px',
+                        background: 'transparent', border: '1px solid var(--rule)', color: 'var(--ink)',
+                        fontFamily: 'var(--sans-lat)', fontSize: '11px',
+                        cursor: newsLoading ? 'wait' : 'pointer', opacity: newsLoading ? 0.5 : 1,
                         letterSpacing: '0.1em',
                       }}
                     >
-                      <svg
-                        width="11" height="11" viewBox="0 0 24 24" fill="none"
-                        style={{
-                          animation: newsLoading ? 'spin 1s linear infinite' : 'none',
-                        }}
-                      >
-                        <path
-                          d="M3 12a9 9 0 0 1 15.2-6.5L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.2 6.5L3 16M3 21v-5h5"
-                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                        />
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ animation: newsLoading ? 'spin 1s linear infinite' : 'none' }}>
+                        <path d="M3 12a9 9 0 0 1 15.2-6.5L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.2 6.5L3 16M3 21v-5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                       <span>تحديث</span>
                     </button>
                   </div>
                 </div>
 
-                {/* ─── Loading skeleton ─── */}
                 {newsLoading && (
                   <div style={{ paddingTop: '8px' }}>
                     {[0, 1, 2].map(i => (
-                      <div
-                        key={i}
-                        className="animate-pulse"
-                        style={{
-                          padding: '16px 0',
-                          borderBottom: '1px solid var(--rule)',
-                          opacity: 0.6,
-                        }}
-                      >
-                        <div style={{
-                          height: '14px',
-                          width: '70%',
-                          background: 'var(--cream-deep)',
-                          marginBottom: '8px',
-                        }} />
-                        <div style={{
-                          height: '12px',
-                          width: '90%',
-                          background: 'var(--cream-deep)',
-                        }} />
+                      <div key={i} className="animate-pulse" style={{ padding: '16px 0', borderBottom: '1px solid var(--rule)', opacity: 0.6 }}>
+                        <div style={{ height: '14px', width: '70%', background: 'var(--cream-deep)', marginBottom: '8px' }} />
+                        <div style={{ height: '12px', width: '90%', background: 'var(--cream-deep)' }} />
                       </div>
                     ))}
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '12px 0',
-                      fontSize: '12px',
-                      color: 'var(--muted)',
-                      fontFamily: 'var(--sans-lat)',
-                    }}>
-                      جارٍ جلب الأخبار من المصادر…
-                    </div>
+                    <div style={{ textAlign: 'center', padding: '12px 0', fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--sans-lat)' }}>جارٍ جلب الأخبار من المصادر…</div>
                   </div>
                 )}
 
-                {/* ─── Error state ─── */}
                 {!newsLoading && newsError && (
-                  <div style={{
-                    padding: '20px',
-                    border: '1px solid var(--rule)',
-                    background: 'var(--cream-deep)',
-                    color: 'var(--bear)',
-                    fontSize: '13px',
-                    textAlign: 'center',
-                  }}>
-                    {newsError}
-                  </div>
+                  <div style={{ padding: '20px', border: '1px solid var(--rule)', background: 'var(--cream-deep)', color: 'var(--bear)', fontSize: '13px', textAlign: 'center' }}>{newsError}</div>
                 )}
 
-                {/* ─── News list ─── */}
                 {!newsLoading && !newsError && stockNews.length > 0 && (
-                  <div style={{
-                    maxHeight: '420px',
-                    overflowY: 'auto',
-                    marginTop: '8px',
-                  }}>
+                  <div style={{ maxHeight: '420px', overflowY: 'auto', marginTop: '8px' }}>
                     {stockNews.map(item => (
                       <button
                         key={item.id}
@@ -771,67 +572,31 @@ export default function NewsInput() {
                         disabled={isLoading}
                         className="w-full transition-colors hover:bg-[var(--cream-deep)]"
                         style={{
-                          display: 'block',
-                          padding: '16px 0',
-                          textAlign: 'right',
-                          background: 'transparent',
-                          borderTop: 'none',
-                          borderLeft: 'none',
-                          borderRight: 'none',
+                          display: 'block', padding: '16px 0', textAlign: 'right', background: 'transparent',
+                          borderTop: 'none', borderLeft: 'none', borderRight: 'none',
                           borderBottom: '1px solid var(--rule)',
-                          cursor: isLoading ? 'wait' : 'pointer',
-                          opacity: isLoading ? 0.5 : 1,
-                          width: '100%',
+                          cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.5 : 1, width: '100%',
                         }}
                       >
                         <div className="flex items-start" style={{ gap: '12px' }}>
                           <span style={{
-                            fontFamily: 'var(--mono)',
-                            fontSize: '10px',
-                            fontWeight: 500,
+                            fontFamily: 'var(--mono)', fontSize: '10px', fontWeight: 500,
                             color: item.matchType === 'direct' ? 'var(--amber-deep)' : 'var(--muted)',
                             background: item.matchType === 'direct' ? 'var(--amber)' : 'var(--cream-deep)',
-                            padding: '3px 7px',
-                            letterSpacing: '0.1em',
-                            flexShrink: 0,
-                            marginTop: '3px',
+                            padding: '3px 7px', letterSpacing: '0.1em', flexShrink: 0, marginTop: '3px',
                           }}>
                             {item.matchType === 'direct' ? 'مباشر' : 'القطاع'}
                           </span>
 
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{
-                              fontFamily: 'var(--sans)',
-                              fontSize: '15px',
-                              fontWeight: 500,
-                              color: 'var(--ink)',
-                              lineHeight: 1.5,
-                              marginBottom: '6px',
-                            }}>
-                              {item.title}
-                            </div>
-
+                            <div style={{ fontFamily: 'var(--sans)', fontSize: '15px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.5, marginBottom: '6px' }}>{item.title}</div>
                             {item.desc && (
                               <div style={{
-                                fontSize: '13px',
-                                color: 'var(--muted)',
-                                lineHeight: 1.5,
-                                marginBottom: '8px',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                              }}>
-                                {item.desc}
-                              </div>
+                                fontSize: '13px', color: 'var(--muted)', lineHeight: 1.5, marginBottom: '8px',
+                                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                              }}>{item.desc}</div>
                             )}
-
-                            <div className="flex items-center" style={{
-                              gap: '12px',
-                              fontFamily: 'var(--sans-lat)',
-                              fontSize: '11px',
-                              color: 'var(--muted)',
-                            }}>
+                            <div className="flex items-center" style={{ gap: '12px', fontFamily: 'var(--sans-lat)', fontSize: '11px', color: 'var(--muted)' }}>
                               <span>{item.source}</span>
                               <span style={{ fontFamily: 'var(--mono)' }}>·</span>
                               <span style={{ fontFamily: 'var(--mono)' }}>{timeAgoAr(item.fetchedAt)}</span>
@@ -847,53 +612,18 @@ export default function NewsInput() {
                   </div>
                 )}
 
-                {/* ─── Empty state ─── */}
                 {!newsLoading && !newsError && hasFetched && stockNews.length === 0 && (
-                  <div style={{
-                    padding: '32px 24px',
-                    border: '1px solid var(--rule)',
-                    background: 'var(--cream-deep)',
-                    textAlign: 'center',
-                  }}>
-                    <div style={{
-                      fontSize: '14px',
-                      color: 'var(--ink)',
-                      marginBottom: '6px',
-                      fontWeight: 500,
-                    }}>
-                      {totalFetched === 0
-                        ? 'تعذّر جلب الأخبار من المصادر حالياً'
-                        : `لا توجد أخبار حديثة لـ ${selected.n}`}
+                  <div style={{ padding: '32px 24px', border: '1px solid var(--rule)', background: 'var(--cream-deep)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--ink)', marginBottom: '6px', fontWeight: 500 }}>
+                      {totalFetched === 0 ? 'تعذّر جلب الأخبار من المصادر حالياً' : `لا توجد أخبار حديثة لـ ${selected.n}`}
                     </div>
-                    <div style={{
-                      fontSize: '12px',
-                      color: 'var(--muted)',
-                      lineHeight: 1.6,
-                    }}>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
                       {totalFetched === 0 ? (
-                        <>
-                          مصادر الأخبار (أرقام، مباشر، الاقتصادية…) لم تستجب الآن.
-                          {' '}
-                          <button
-                            onClick={refreshNews}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: 'var(--amber-deep)',
-                              cursor: 'pointer',
-                              padding: 0,
-                              textDecoration: 'underline',
-                              font: 'inherit',
-                            }}
-                          >
-                            إعادة المحاولة
-                          </button>
+                        <>مصادر الأخبار لم تستجب الآن.{' '}
+                          <button onClick={refreshNews} style={{ background: 'transparent', border: 'none', color: 'var(--amber-deep)', cursor: 'pointer', padding: 0, textDecoration: 'underline', font: 'inherit' }}>إعادة المحاولة</button>
                         </>
                       ) : (
-                        <>
-                          فحصنا <strong style={{ color: 'var(--ink)' }}>{totalFetched}</strong> خبراً ولم نجد ذكراً لـ {selected.n}.
-                          يمكنك إجراء تحليل عام للسهم، أو الانتقال للتبويب الأول وإدخال نص الخبر يدوياً.
-                        </>
+                        <>فحصنا <strong style={{ color: 'var(--ink)' }}>{totalFetched}</strong> خبراً ولم نجد ذكراً مالياً صريحاً لـ {selected.n}. يمكنك إجراء تحليل عام للسهم، أو إدخال نص الخبر يدوياً.</>
                       )}
                     </div>
                   </div>
@@ -901,18 +631,9 @@ export default function NewsInput() {
               </div>
             )}
 
-            {/* ═══════════════════════════════════════════════
-                 شريط الإجراءات السفلي
-                ═══════════════════════════════════════════════ */}
             <div className="flex items-center justify-between" style={{ marginTop: '32px' }}>
-              <span style={{
-                fontSize: '12px',
-                color: 'var(--muted)',
-                fontFamily: 'var(--sans-lat)',
-              }}>
-                {selected
-                  ? `محدّد: ${selected.t} — ${selected.n}`
-                  : 'اختر سهماً لعرض أخباره'}
+              <span style={{ fontSize: '12px', color: 'var(--muted)', fontFamily: 'var(--sans-lat)' }}>
+                {selected ? `محدّد: ${selected.t} — ${selected.n}` : 'اختر سهماً لعرض أخباره'}
               </span>
 
               <button
@@ -920,14 +641,8 @@ export default function NewsInput() {
                 disabled={!selected || isLoading}
                 className="inline-flex items-center transition-colors"
                 style={{
-                  gap: '16px',
-                  padding: '14px 26px',
-                  background: 'transparent',
-                  border: '1px solid var(--ink)',
-                  color: 'var(--ink)',
-                  fontFamily: 'var(--sans)',
-                  fontSize: '14px',
-                  fontWeight: 500,
+                  gap: '16px', padding: '14px 26px', background: 'transparent', border: '1px solid var(--ink)',
+                  color: 'var(--ink)', fontFamily: 'var(--sans)', fontSize: '14px', fontWeight: 500,
                   cursor: !selected || isLoading ? 'not-allowed' : 'pointer',
                   opacity: !selected || isLoading ? 0.5 : 1,
                 }}
@@ -946,50 +661,13 @@ export default function NewsInput() {
   )
 }
 
-/* ═══ مكوّن إعداد فردي (MARKET / DEPTH / SOURCE) ═══ */
-function SettingItem({
-  labelEn, value, first, last,
-}: {
-  labelEn: string
-  value:   string
-  first?:  boolean
-  last?:   boolean
-}) {
+function SettingItem({ labelEn, value, first, last }: { labelEn: string; value: string; first?: boolean; last?: boolean }) {
   return (
-    <div
-      className="flex-1"
-      style={{
-        paddingLeft:  last  ? 0 : '24px',
-        marginLeft:   last  ? 0 : '24px',
-        paddingRight: first ? 0 : undefined,
-        borderLeft:   last  ? 'none' : '1px solid var(--rule)',
-      }}
-    >
-      <div style={{
-        fontFamily: 'var(--sans-lat)',
-        fontSize: '10px',
-        fontWeight: 500,
-        color: 'var(--muted)',
-        letterSpacing: '0.15em',
-        marginBottom: '8px',
-      }}>
-        {labelEn}
-      </div>
-      <div className="flex items-center" style={{
-        gap: '8px',
-        fontSize: '15px',
-        fontWeight: 500,
-        color: 'var(--ink)',
-      }}>
+    <div className="flex-1" style={{ paddingLeft: last ? 0 : '24px', marginLeft: last ? 0 : '24px', paddingRight: first ? 0 : undefined, borderLeft: last ? 'none' : '1px solid var(--rule)' }}>
+      <div style={{ fontFamily: 'var(--sans-lat)', fontSize: '10px', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.15em', marginBottom: '8px' }}>{labelEn}</div>
+      <div className="flex items-center" style={{ gap: '8px', fontSize: '15px', fontWeight: 500, color: 'var(--ink)' }}>
         {value}
-        <span style={{
-          width: 0,
-          height: 0,
-          borderLeft: '4px solid transparent',
-          borderRight: '4px solid transparent',
-          borderTop: '5px solid var(--ink)',
-          marginTop: '2px',
-        }} />
+        <span style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid var(--ink)', marginTop: '2px' }} />
       </div>
     </div>
   )
@@ -997,15 +675,6 @@ function SettingItem({
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd style={{
-      fontFamily: 'var(--mono)',
-      background: 'var(--cream-deep)',
-      border: '1px solid var(--rule)',
-      padding: '2px 6px',
-      fontSize: '11px',
-      color: 'var(--ink)',
-    }}>
-      {children}
-    </kbd>
+    <kbd style={{ fontFamily: 'var(--mono)', background: 'var(--cream-deep)', border: '1px solid var(--rule)', padding: '2px 6px', fontSize: '11px', color: 'var(--ink)' }}>{children}</kbd>
   )
 }
