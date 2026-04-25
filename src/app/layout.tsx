@@ -19,15 +19,10 @@ export const metadata: Metadata = {
   },
 }
 
-/* ═══════════════════════════════════════════════════════════
-   عرض ثابت 1280px → يعرض الموبايل نفس تخطيط الديسكتوب مصغّراً
-   مع إمكانية التكبير بالأصابع (pinch-zoom).
-   ═══════════════════════════════════════════════════════════ */
+/* viewport طبيعي — ندع التصميم المتجاوب يتولى الموبايل */
 export const viewport: Viewport = {
-  width:        1280,
-  minimumScale: 0.25,
-  maximumScale: 5,
-  userScalable: true,
+  width:        'device-width',
+  initialScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: dark)',  color: '#0D1117' },
     { media: '(prefers-color-scheme: light)', color: '#F6F8FA' },
