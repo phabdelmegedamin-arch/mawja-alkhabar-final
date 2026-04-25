@@ -3,27 +3,19 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'edge'
  
 /* ──────────────────────────────────────────────────────────
-   مصادر RSS — الروابط الصحيحة (تم التحقق منها مباشرة)
+   مصادر RSS — الروابط الصحيحة
    ────────────────────────────────────────────────────────── */
 const SOURCES = [
-  // Argaam — أهم مصدر للأخبار السعودية الاقتصادية
   { id: 'argaam_main', name: 'أرقام',         icon: '📊', url: 'https://www.argaam.com/ar/rss/ho-main-news?sectionid=1524' },
   { id: 'argaam_disc', name: 'أرقام-إفصاحات', icon: '📋', url: 'https://www.argaam.com/ar/rss/ho-company-disclosures?sectionid=244' },
   { id: 'argaam_co',   name: 'أرقام-شركات',  icon: '🏢', url: 'https://www.argaam.com/ar/rss/companies?sectionid=1542' },
- 
-  // Mubasher
   { id: 'mubasher',    name: 'مباشر',         icon: '📈', url: 'https://www.mubasher.info/rss/sa' },
- 
-  // Saudi Press Agency
   { id: 'spa',         name: 'واس',           icon: '🇸🇦', url: 'https://www.spa.gov.sa/rss.php?l=ar' },
- 
-  // CNBC Arabia (markets)
   { id: 'cnbcar',      name: 'CNBC عربية',    icon: '🌐', url: 'https://www.cnbcarabia.com/rss/all' },
 ]
  
-/* Google News RSS — يعمل من أي مكان، لا يحتاج وسيط */
+/* Google News — يعمل من أي مكان (قاعدة) */
 function googleNewsSearchUrl(query: string): string {
-  // hl=ar (لغة الواجهة) | gl=SA (الموقع: السعودية) | ceid=SA:ar (تركيبة المنطقة:اللغة)
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ar&gl=SA&ceid=SA:ar`
 }
  
@@ -33,42 +25,78 @@ function googleNewsSearchUrl(query: string): string {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sourceId = searchParams.get('source')
-  const query    = searchParams.get('q')                // بحث عن سهم/كلمة
+  const query    = searchParams.get('q')                    // بحث محدد عن سهم
+  const ticker   = searchParams.get('ticker')               // رمز السهم (اختياري)
   const debug    = searchParams.get('debug') === '1'
+  const refresh  = searchParams.get('refresh') === '1'      // تجاوز CDN cache
  
-  // ─── حالة 1: بحث محدد عن سهم → Google News + بعض المصادر ───
+  let sources: { id: string; name: string; icon: string; url: string }[]
+ 
   if (query) {
-    const sources = [
-      { id: 'gnews_q',  name: 'Google News', icon: '🔎', url: googleNewsSearchUrl(query) },
-      // إضافة أرقام كمصدر ثانوي (في حال احتوى أخبار حديثة عن السهم)
-      ...SOURCES.filter(s => s.id === 'argaam_main' || s.id === 'argaam_disc'),
+    // ─── بحث محدد عن سهم ───
+    // استخدام علامات اقتباس + سياق مالي لتقليل الضوضاء
+    // مثال: "بنك الجزيرة" 1020 (سهم OR تداول OR أرباح OR إفصاح)
+    const financialContext = '(سهم OR تداول OR أرباح OR إفصاح OR تاسي OR مالية OR إيرادات OR نتائج)'
+    const queries = [
+      `"${query}" ${financialContext}`,                      // الاسم بالضبط + سياق مالي
+      ticker ? `${ticker}` : null,                           // الرمز فقط (لو موجود)
+    ].filter(Boolean) as string[]
+ 
+    sources = queries.map((q, i) => ({
+      id:   `gnews_q${i}`,
+      name: 'Google News',
+      icon: '🔎',
+      url:  googleNewsSearchUrl(q),
+    }))
+ 
+    // إضافة أرقام كمصدر ثانوي مكمّل
+    sources.push(...SOURCES.filter(s => s.id === 'argaam_main' || s.id === 'argaam_disc'))
+  } else {
+    // ─── الخلاصة العامة ───
+    const generalSources = [
+      // 3 استعلامات Google News متنوعة → يضمن وصول 30+ خبر حتى لو فشل البقية
+      {
+        id:   'gnews_market',
+        name: 'Google News',
+        icon: '🔎',
+        url:  googleNewsSearchUrl('السوق السعودي تداول'),
+      },
+      {
+        id:   'gnews_stocks',
+        name: 'Google News',
+        icon: '🔎',
+        url:  googleNewsSearchUrl('الأسهم السعودية تاسي'),
+      },
+      {
+        id:   'gnews_economy',
+        name: 'Google News',
+        icon: '🔎',
+        url:  googleNewsSearchUrl('اقتصاد السعودية شركات'),
+      },
+      ...SOURCES,
     ]
- 
-    const results = await Promise.allSettled(sources.map(src => fetchSource(src)))
-    const items = mergeResults(results, /* limit */ 40)
-    const diagnostics = buildDiagnostics(results, sources)
- 
-    return jsonResponse(items, debug ? diagnostics : undefined, query)
+    sources = sourceId ? generalSources.filter(s => s.id === sourceId) : generalSources
   }
  
-  // ─── حالة 2: الخلاصة العامة (كل المصادر) ───
-  const sources = sourceId ? SOURCES.filter(s => s.id === sourceId) : SOURCES
   const results = await Promise.allSettled(sources.map(src => fetchSource(src)))
-  const items   = mergeResults(results, 60)
+  const items = mergeResults(results, query ? 40 : 60)
   const diagnostics = buildDiagnostics(results, sources)
  
-  return jsonResponse(items, debug ? diagnostics : undefined)
-}
+  // ── 🔑 منع تخزين النتائج الفارغة في CDN cache ──
+  const cacheHeader = (items.length > 0 && !refresh)
+    ? 'public, s-maxage=300, stale-while-revalidate=60'
+    : 'no-store, no-cache, must-revalidate'
  
-function jsonResponse(items: any[], diagnostics: any[] | undefined, query?: string) {
   const payload: any = { success: true, data: items, count: items.length }
   if (query) payload.query = query
-  if (diagnostics) payload.diagnostics = diagnostics
+  if (ticker) payload.ticker = ticker
+  if (debug) payload.diagnostics = diagnostics
+ 
+  // log في Vercel logs لتسهيل التشخيص (يظهر في Functions tab)
+  console.log(`[/api/news] q=${query ?? '(general)'} count=${items.length} sources=${diagnostics.map(d => `${d.source}:${d.count}/${d.via}`).join(',')}`)
  
   return NextResponse.json(payload, {
-    headers: {
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60',
-    },
+    headers: { 'Cache-Control': cacheHeader },
   })
 }
  
@@ -100,18 +128,21 @@ type FetchedItem = ReturnType<typeof parseJsonItem>
  
 async function fetchSource(src: { id: string; name: string; icon: string; url: string }): Promise<{ items: FetchedItem[]; via: string }> {
  
-  /* ─── Layer 1: Direct fetch (Edge runtime, no CORS) ─── */
+  /* ─── Layer 1: Direct fetch ─── */
   try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 9000)
     const res = await fetch(src.url, {
-      signal: AbortSignal.timeout(8000),
+      signal: ctrl.signal,
       headers: {
-        'User-Agent':      'Mozilla/5.0 (compatible; MawjaBot/1.0; +https://mawja.app)',
+        'User-Agent':      'Mozilla/5.0 (compatible; MawjaBot/1.0)',
         'Accept':          'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
         'Accept-Language': 'ar,en;q=0.9',
       },
       // @ts-ignore
       cache: 'no-store',
     })
+    clearTimeout(t)
     if (res.ok) {
       const xml   = await res.text()
       const items = parseXMLFeed(xml, src)
@@ -121,8 +152,11 @@ async function fetchSource(src: { id: string; name: string; icon: string; url: s
  
   /* ─── Layer 2: rss2json ─── */
   try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 8000)
     const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}&count=15`
-    const res = await fetch(url, { signal: AbortSignal.timeout(7000) })
+    const res = await fetch(url, { signal: ctrl.signal })
+    clearTimeout(t)
     if (res.ok) {
       const data = await res.json()
       if (data?.status === 'ok' && Array.isArray(data.items)) {
@@ -134,8 +168,11 @@ async function fetchSource(src: { id: string; name: string; icon: string; url: s
  
   /* ─── Layer 3: allorigins ─── */
   try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 9000)
     const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`
-    const res   = await fetch(proxy, { signal: AbortSignal.timeout(8000) })
+    const res   = await fetch(proxy, { signal: ctrl.signal })
+    clearTimeout(t)
     if (res.ok) {
       const data  = await res.json()
       const items = parseXMLFeed(data?.contents ?? '', src)
