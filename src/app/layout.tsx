@@ -19,10 +19,15 @@ export const metadata: Metadata = {
   },
 }
 
-// ✅ إصلاح 1: دعم الثيمين داكن وفاتح
+/* ═══════════════════════════════════════════════════════════
+   عرض ثابت 1280px → يعرض الموبايل نفس تخطيط الديسكتوب مصغّراً
+   مع إمكانية التكبير بالأصابع (pinch-zoom).
+   ═══════════════════════════════════════════════════════════ */
 export const viewport: Viewport = {
-  width:        'device-width',
-  initialScale: 1,
+  width:        1280,
+  minimumScale: 0.25,
+  maximumScale: 5,
+  userScalable: true,
   themeColor: [
     { media: '(prefers-color-scheme: dark)',  color: '#0D1117' },
     { media: '(prefers-color-scheme: light)', color: '#F6F8FA' },
@@ -40,7 +45,6 @@ export default function RootLayout({
       <body
         className="antialiased"
         style={{
-          // ✅ إصلاح 2: CSS variables بدل الألوان المشفرة
           background: 'var(--bg)',
           color:      'var(--tx)',
           minHeight:  '100dvh',
