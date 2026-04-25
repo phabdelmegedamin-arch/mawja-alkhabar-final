@@ -18,6 +18,118 @@ const SA_STOCKS = (() => {
   return out.sort((a, b) => a.t.localeCompare(b.t))
 })()
 
+/* ═══════════════════════════════════════════
+   Arabic text normalization for matching
+   ═══════════════════════════════════════════ */
+function normalizeArabic(s: string): string {
+  return s
+    .replace(/[\u064B-\u065F\u0670]/g, '') // remove diacritics (tashkeel)
+    .replace(/[إأآا]/g, 'ا')               // normalize alef variants
+    .replace(/ى/g, 'ي')                    // normalize ya
+    .replace(/ؤ/g, 'و')                    // normalize waw-hamza
+    .replace(/ئ/g, 'ي')                    // normalize ya-hamza
+    .replace(/ة/g, 'ه')                    // ta marbuta -> ha
+    .replace(/\s+/g, ' ')                  // collapse whitespace
+    .toLowerCase()
+    .trim()
+}
+
+/* ═══════════════════════════════════════════
+   Stock news item shape
+   ═══════════════════════════════════════════ */
+interface StockNewsItem {
+  id: string
+  title: string
+  desc: string
+  link: string
+  source: string
+  pubDate: string
+  fetchedAt: number
+  matchType: 'direct' | 'sector' // direct = ticker/name match, sector = keyword match
+}
+
+/* ═══════════════════════════════════════════
+   News fetching + filtering for a given stock
+   ═══════════════════════════════════════════ */
+async function fetchNewsForStock(stock: {
+  t: string
+  n: string
+  sector: string
+  sectorKey: string
+}): Promise<StockNewsItem[]> {
+  const res = await fetch('/api/news', { cache: 'no-store' })
+  if (!res.ok) throw new Error('فشل جلب الأخبار')
+  const data = await res.json()
+  if (!data?.success || !Array.isArray(data.data)) return []
+
+  const sectorInfo = (DB as any)[stock.sectorKey]
+  const sectorKeywords: string[] = sectorInfo?.kw ?? []
+
+  const normName = normalizeArabic(stock.n)
+  // Build alternative name fragments (e.g., "أرامكو السعودية" → also try "أرامكو")
+  const nameFragments = stock.n
+    .split(/\s+/)
+    .map(w => normalizeArabic(w))
+    .filter(w => w.length >= 4 && !['السعودية', 'العربية', 'الشركة', 'مجموعة', 'شركة', 'القابضة'].includes(w))
+
+  const matches: StockNewsItem[] = []
+
+  for (const item of data.data as any[]) {
+    const rawText = `${item.title ?? ''} ${item.desc ?? ''}`
+    const normText = normalizeArabic(rawText)
+
+    let matchType: 'direct' | 'sector' | null = null
+
+    // 1) Direct ticker match (numeric, with non-digit boundaries)
+    if (new RegExp(`(?:^|[^0-9])${stock.t}(?:[^0-9]|$)`).test(rawText)) {
+      matchType = 'direct'
+    }
+    // 2) Full normalized name match
+    else if (normName.length >= 3 && normText.includes(normName)) {
+      matchType = 'direct'
+    }
+    // 3) Distinctive name fragment match
+    else if (nameFragments.some(frag => normText.includes(frag))) {
+      matchType = 'direct'
+    }
+    // 4) Sector keyword match (weaker signal)
+    else if (sectorKeywords.some(kw => normText.includes(normalizeArabic(kw)))) {
+      matchType = 'sector'
+    }
+
+    if (matchType) {
+      matches.push({
+        id: item.id ?? Math.random().toString(36).slice(2),
+        title: item.title ?? '',
+        desc: item.desc ?? '',
+        link: item.link ?? '',
+        source: item.source ?? '',
+        pubDate: item.pubDate ?? '',
+        fetchedAt: item.fetchedAt ?? Date.now(),
+        matchType,
+      })
+    }
+  }
+
+  // Sort: direct matches first, then by recency
+  matches.sort((a, b) => {
+    if (a.matchType !== b.matchType) return a.matchType === 'direct' ? -1 : 1
+    return b.fetchedAt - a.fetchedAt
+  })
+
+  return matches.slice(0, 20)
+}
+
+function timeAgoAr(ts: number): string {
+  const diffMin = Math.floor((Date.now() - ts) / 60000)
+  if (diffMin < 1) return 'الآن'
+  if (diffMin < 60) return `${diffMin} د`
+  const h = Math.floor(diffMin / 60)
+  if (h < 24) return `${h} س`
+  const d = Math.floor(h / 24)
+  return `${d} ي`
+}
+
 export default function NewsInput() {
   const [tab, setTab] = useState<Tab>('news')
   const {
@@ -33,6 +145,12 @@ export default function NewsInput() {
   const [useAI, setUseAI]       = useState(pro)
   const dropRef = useRef<HTMLDivElement>(null)
 
+  /* ── Stock-news state ────────────────────── */
+  const [stockNews,    setStockNews]    = useState<StockNewsItem[]>([])
+  const [newsLoading,  setNewsLoading]  = useState(false)
+  const [newsError,    setNewsError]    = useState<string | null>(null)
+  const [hasFetched,   setHasFetched]   = useState(false)
+
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) setShowDrop(false)
@@ -40,6 +158,39 @@ export default function NewsInput() {
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
+
+  /* ── Auto-fetch news whenever a stock is selected ─── */
+  useEffect(() => {
+    if (!selected) {
+      setStockNews([])
+      setNewsError(null)
+      setHasFetched(false)
+      return
+    }
+    let cancelled = false
+    setNewsLoading(true)
+    setNewsError(null)
+    setStockNews([])
+    setHasFetched(false)
+
+    fetchNewsForStock(selected)
+      .then(items => {
+        if (cancelled) return
+        setStockNews(items)
+        setHasFetched(true)
+      })
+      .catch(err => {
+        if (cancelled) return
+        console.error(err)
+        setNewsError('تعذّر جلب الأخبار — تحقق من الاتصال وحاول مجدداً')
+        setHasFetched(true)
+      })
+      .finally(() => {
+        if (!cancelled) setNewsLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [selected])
 
   const filtered = search
     ? SA_STOCKS.filter(s =>
@@ -117,7 +268,19 @@ export default function NewsInput() {
 
   const handleNewsSubmit = () => runAnalysis(inputText)
 
-  const handleStockSubmit = () => {
+  /* عند الضغط على خبر متعلق بالسهم → نُشغّل التحليل عليه */
+  const handleNewsClick = (item: StockNewsItem) => {
+    const fullText = `${item.title}. ${item.desc}`.trim()
+    setInput(fullText)
+    runAnalysis(fullText)
+    // اسحب الانتباه نحو نتيجة التحليل
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  /* تحليل عام للسهم بدون خبر معيّن (احتياطي) */
+  const handleGenericStockAnalysis = () => {
     if (!selected) { setError('اختر سهماً أولاً'); return }
     const text = `تحليل أداء سهم ${selected.n} (${selected.t}) في قطاع ${selected.sector}.`
     setInput(text)
@@ -128,7 +291,7 @@ export default function NewsInput() {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault()
       if (tab === 'news') handleNewsSubmit()
-      else handleStockSubmit()
+      else handleGenericStockAnalysis()
     }
   }
 
@@ -434,34 +597,255 @@ export default function NewsInput() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between" style={{ marginTop: '40px' }}>
+            {/* ═══════════════════════════════════════════════
+                 قائمة الأخبار المتعلقة بالسهم المختار
+                ═══════════════════════════════════════════════ */}
+            {selected && (
+              <div style={{ marginTop: '32px' }}>
+                <div
+                  className="flex items-center justify-between"
+                  style={{
+                    paddingBottom: '12px',
+                    borderBottom: '1px solid var(--rule)',
+                    marginBottom: '4px',
+                  }}
+                >
+                  <div className="flex items-center" style={{ gap: '10px' }}>
+                    <span style={{
+                      fontFamily: 'var(--sans-lat)',
+                      fontSize: '10px',
+                      fontWeight: 500,
+                      color: 'var(--muted)',
+                      letterSpacing: '0.15em',
+                    }}>
+                      RELATED NEWS · أخبار {selected.n}
+                    </span>
+                    {!newsLoading && hasFetched && (
+                      <span style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: '11px',
+                        color: 'var(--muted)',
+                        background: 'var(--cream-deep)',
+                        padding: '2px 8px',
+                      }}>
+                        {stockNews.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <span style={{
+                    fontSize: '11px',
+                    color: 'var(--muted)',
+                    fontFamily: 'var(--sans-lat)',
+                  }}>
+                    اضغط على خبر لبدء التحليل
+                  </span>
+                </div>
+
+                {/* ─── Loading skeleton ─── */}
+                {newsLoading && (
+                  <div style={{ paddingTop: '8px' }}>
+                    {[0, 1, 2].map(i => (
+                      <div
+                        key={i}
+                        className="animate-pulse"
+                        style={{
+                          padding: '16px 0',
+                          borderBottom: '1px solid var(--rule)',
+                          opacity: 0.6,
+                        }}
+                      >
+                        <div style={{
+                          height: '14px',
+                          width: '70%',
+                          background: 'var(--cream-deep)',
+                          marginBottom: '8px',
+                        }} />
+                        <div style={{
+                          height: '12px',
+                          width: '90%',
+                          background: 'var(--cream-deep)',
+                        }} />
+                      </div>
+                    ))}
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '12px 0',
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      fontFamily: 'var(--sans-lat)',
+                    }}>
+                      جارٍ جلب الأخبار من المصادر…
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── Error state ─── */}
+                {!newsLoading && newsError && (
+                  <div style={{
+                    padding: '20px',
+                    border: '1px solid var(--rule)',
+                    background: 'var(--cream-deep)',
+                    color: 'var(--bear)',
+                    fontSize: '13px',
+                    textAlign: 'center',
+                  }}>
+                    {newsError}
+                  </div>
+                )}
+
+                {/* ─── News list ─── */}
+                {!newsLoading && !newsError && stockNews.length > 0 && (
+                  <div style={{
+                    maxHeight: '420px',
+                    overflowY: 'auto',
+                    marginTop: '8px',
+                  }}>
+                    {stockNews.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNewsClick(item)}
+                        disabled={isLoading}
+                        className="w-full transition-colors hover:bg-[var(--cream-deep)]"
+                        style={{
+                          display: 'block',
+                          padding: '16px 0',
+                          textAlign: 'right',
+                          background: 'transparent',
+                          borderTop: 'none',
+                          borderLeft: 'none',
+                          borderRight: 'none',
+                          borderBottom: '1px solid var(--rule)',
+                          cursor: isLoading ? 'wait' : 'pointer',
+                          opacity: isLoading ? 0.5 : 1,
+                          width: '100%',
+                        }}
+                      >
+                        <div className="flex items-start" style={{ gap: '12px' }}>
+                          <span style={{
+                            fontFamily: 'var(--mono)',
+                            fontSize: '10px',
+                            fontWeight: 500,
+                            color: item.matchType === 'direct' ? 'var(--amber-deep)' : 'var(--muted)',
+                            background: item.matchType === 'direct' ? 'var(--amber)' : 'var(--cream-deep)',
+                            padding: '3px 7px',
+                            letterSpacing: '0.1em',
+                            flexShrink: 0,
+                            marginTop: '3px',
+                          }}>
+                            {item.matchType === 'direct' ? 'مباشر' : 'القطاع'}
+                          </span>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontFamily: 'var(--sans)',
+                              fontSize: '15px',
+                              fontWeight: 500,
+                              color: 'var(--ink)',
+                              lineHeight: 1.5,
+                              marginBottom: '6px',
+                            }}>
+                              {item.title}
+                            </div>
+
+                            {item.desc && (
+                              <div style={{
+                                fontSize: '13px',
+                                color: 'var(--muted)',
+                                lineHeight: 1.5,
+                                marginBottom: '8px',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}>
+                                {item.desc}
+                              </div>
+                            )}
+
+                            <div className="flex items-center" style={{
+                              gap: '12px',
+                              fontFamily: 'var(--sans-lat)',
+                              fontSize: '11px',
+                              color: 'var(--muted)',
+                            }}>
+                              <span>{item.source}</span>
+                              <span style={{ fontFamily: 'var(--mono)' }}>·</span>
+                              <span style={{ fontFamily: 'var(--mono)' }}>{timeAgoAr(item.fetchedAt)}</span>
+                            </div>
+                          </div>
+
+                          <svg width="14" height="10" viewBox="0 0 18 10" fill="none" style={{ flexShrink: 0, marginTop: '6px' }}>
+                            <path d="M1 5 H 16 M 11 1 L 16 5 L 11 9" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="square" />
+                          </svg>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* ─── Empty state ─── */}
+                {!newsLoading && !newsError && hasFetched && stockNews.length === 0 && (
+                  <div style={{
+                    padding: '32px 24px',
+                    border: '1px solid var(--rule)',
+                    background: 'var(--cream-deep)',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{
+                      fontSize: '14px',
+                      color: 'var(--ink)',
+                      marginBottom: '6px',
+                      fontWeight: 500,
+                    }}>
+                      لا توجد أخبار حديثة لـ {selected.n}
+                    </div>
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      lineHeight: 1.6,
+                    }}>
+                      يمكنك إجراء تحليل عام للسهم بناءً على بياناته القطاعية، أو الانتقال للتبويب الأول وإدخال نص الخبر يدوياً.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════
+                 شريط الإجراءات السفلي
+                ═══════════════════════════════════════════════ */}
+            <div className="flex items-center justify-between" style={{ marginTop: '32px' }}>
               <span style={{
                 fontSize: '12px',
                 color: 'var(--muted)',
                 fontFamily: 'var(--sans-lat)',
               }}>
-                {selected ? `محدّد: ${selected.t} — ${selected.n}` : 'اختر سهماً للقياس'}
+                {selected
+                  ? `محدّد: ${selected.t} — ${selected.n}`
+                  : 'اختر سهماً لعرض أخباره'}
               </span>
 
               <button
-                onClick={handleStockSubmit}
+                onClick={handleGenericStockAnalysis}
                 disabled={!selected || isLoading}
                 className="inline-flex items-center transition-colors"
                 style={{
                   gap: '16px',
-                  padding: '16px 32px',
-                  background: 'var(--ink)',
-                  border: 'none',
-                  color: 'var(--cream)',
+                  padding: '14px 26px',
+                  background: 'transparent',
+                  border: '1px solid var(--ink)',
+                  color: 'var(--ink)',
                   fontFamily: 'var(--sans)',
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontWeight: 500,
                   cursor: !selected || isLoading ? 'not-allowed' : 'pointer',
-                  opacity: !selected || isLoading ? 0.6 : 1,
+                  opacity: !selected || isLoading ? 0.5 : 1,
                 }}
+                title="تحليل عام للسهم بدون خبر معيّن"
               >
-                <span>{isLoading ? 'جارٍ القياس…' : 'قياس وضع السهم'}</span>
-                <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                <span>{isLoading ? 'جارٍ القياس…' : 'تحليل عام للسهم'}</span>
+                <svg width="16" height="10" viewBox="0 0 18 10" fill="none">
                   <path d="M1 5 H 16 M 11 1 L 16 5 L 11 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
                 </svg>
               </button>
