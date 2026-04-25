@@ -43,25 +43,63 @@ export default function Header() {
         WebkitBackdropFilter: 'blur(8px)',
       }}
     >
-      {/* CSS متجاوب — إخفاء قائمة الديسكتوب على الموبايل (تظهر في BottomNav) */}
+      {/*
+        ═══════════════════════════════════════════════════════════════
+        CSS متجاوب — الديسكتوب يبقى كما هو 100%، أما الموبايل فيتحول
+        إلى صفّين: (لوجو + أدوات) في الأعلى، ثم قائمة التنقل بكامل العرض
+        أسفلها — بدون إخفاء أي عنصر.
+        ═══════════════════════════════════════════════════════════════
+      */}
       <style dangerouslySetInnerHTML={{ __html: `
-        .hdr-inner    { padding: 22px 48px; gap: 24px; }
-        .hdr-nav      { display: flex; align-items: center; gap: 40px; }
-        .hdr-tools    { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .hdr-brand-sub{ display: inline; }
-        .hdr-tool-icon{ width: 40px; height: 40px; }
-        .hdr-en       { display: inline-flex; }
-        .hdr-logo     { width: 46px; height: 46px; }
+        /* ─── Desktop (الافتراضي) ─── */
+        .hdr-inner       { padding: 22px 48px; gap: 24px; flex-wrap: nowrap; }
+        .hdr-nav         { display: flex; align-items: center; gap: 40px; }
+        .hdr-nav-link    { font-size: 15px; padding: 4px 0; }
+        .hdr-tools       { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .hdr-tool-icon   { width: 40px; height: 40px; }
+        .hdr-en          { display: inline-flex; height: 40px; padding: 0 14px; font-size: 12px; }
+        .hdr-login-btn   { height: 40px; padding: 0 14px; font-size: 13px; }
+        .hdr-brand-sub   { display: inline; }
+        .hdr-logo        { width: 46px; height: 46px; }
         .hdr-brand-title { font-size: 22px; }
 
+        /* ─── Mobile — نفس العناصر، ترتيب جديد ─── */
         @media (max-width: 768px) {
-          .hdr-inner    { padding: 12px 14px; gap: 8px; }
-          .hdr-nav      { display: none; }
-          .hdr-brand-sub{ display: none; }
-          .hdr-tool-icon{ width: 36px; height: 36px; }
-          .hdr-en       { display: none; }
-          .hdr-logo     { width: 34px; height: 34px; }
-          .hdr-brand-title { font-size: 16px; }
+          .hdr-inner {
+            padding: 8px 12px;
+            gap: 4px 8px;
+            flex-wrap: wrap;          /* السماح بالنزول إلى صفّ ثانٍ */
+          }
+
+          /* قائمة التنقل تنتقل إلى الصفّ الثاني بكامل العرض */
+          .hdr-nav {
+            order: 99;
+            flex-basis: 100%;
+            justify-content: space-around;
+            gap: 4px;
+            margin: 4px 0 0;
+            padding: 6px 0 2px;
+            border-top: 1px solid var(--rule);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .hdr-nav::-webkit-scrollbar { display: none; }
+          .hdr-nav-link {
+            font-size: 13px;
+            padding: 4px 6px;
+            white-space: nowrap;
+          }
+
+          /* تصغير العناصر العلوية ليتسعوا في صفّ واحد */
+          .hdr-logo        { width: 30px; height: 30px; }
+          .hdr-brand-title { font-size: 15px; }
+          .hdr-brand-sub   { display: none; }    /* عنوان فرعي صغير جداً، يخفى */
+          .hdr-tool-icon   { width: 32px; height: 32px; }
+          .hdr-tool-icon svg { width: 13px; height: 13px; }
+          .hdr-en          { height: 32px; padding: 0 8px; font-size: 11px; }
+          .hdr-login-btn   { height: 32px; padding: 0 10px; font-size: 12px; }
+          .hdr-tools       { gap: 6px; }
         }
       `}} />
 
@@ -72,7 +110,7 @@ export default function Header() {
           margin: '0 auto',
         }}
       >
-        {/* اللوجو */}
+        {/* ─── اللوجو + اسم البراند ─── */}
         <Link
           href="/"
           style={{
@@ -114,7 +152,7 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* قائمة الديسكتوب — تخفى على الموبايل */}
+        {/* ─── قائمة التنقل (نفس عناصر الديسكتوب، تتحول إلى صفّ كامل على الموبايل) ─── */}
         <nav className="hdr-nav">
           {NAV.map(item => {
             const active = isActive(item.href)
@@ -122,12 +160,11 @@ export default function Header() {
               <Link
                 key={item.href}
                 href={item.href}
+                className="hdr-nav-link"
                 style={{
                   position: 'relative',
-                  fontSize: '15px',
                   color: 'var(--ink)',
                   textDecoration: 'none',
-                  padding: '4px 0',
                   fontWeight: active ? 500 : 400,
                 }}
               >
@@ -136,7 +173,7 @@ export default function Header() {
                   <span
                     style={{
                       position: 'absolute',
-                      bottom: '-6px',
+                      bottom: '-4px',
                       right: 0,
                       left: 0,
                       height: '2px',
@@ -149,7 +186,7 @@ export default function Header() {
           })}
         </nav>
 
-        {/* الأدوات */}
+        {/* ─── الأدوات (الأدمن، الإشعارات، EN، الدخول/المستخدم) ─── */}
         <div className="hdr-tools">
           <Link
             href="/admin"
@@ -193,12 +230,9 @@ export default function Header() {
           <button
             className="hdr-en"
             style={{
-              height: '40px',
-              padding: '0 14px',
               border: '1px solid var(--rule)',
               background: 'transparent',
               fontFamily: 'var(--sans-lat)',
-              fontSize: '12px',
               fontWeight: 500,
               color: 'var(--ink)',
               cursor: 'pointer',
@@ -213,15 +247,13 @@ export default function Header() {
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
+                className="hdr-login-btn"
                 style={{
-                  height: '40px',
-                  padding: '0 6px 0 12px',
                   background: 'var(--ink)',
                   color: 'var(--cream)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  fontSize: '13px',
                   cursor: 'pointer',
                   border: 'none',
                   maxWidth: '160px',
@@ -318,14 +350,12 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
+              className="hdr-login-btn"
               style={{
-                height: '40px',
-                padding: '0 14px',
                 display: 'flex',
                 alignItems: 'center',
                 background: 'var(--ink)',
                 color: 'var(--cream)',
-                fontSize: '13px',
                 fontWeight: 500,
                 textDecoration: 'none',
               }}
