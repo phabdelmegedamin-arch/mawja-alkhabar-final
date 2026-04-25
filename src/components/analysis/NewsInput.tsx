@@ -63,7 +63,14 @@ async function fetchNewsForStock(stock: {
   sector: string
   sectorKey: string
 }, opts: { debug?: boolean; bypassCache?: boolean } = {}): Promise<FetchNewsResult> {
-  const url = opts.debug ? '/api/news?debug=1' : '/api/news'
+  // ابحث عن السهم تحديداً عبر Google News + المصادر الإضافية
+  // مثال: "أرامكو السعودية OR 2222"
+  const q = `${stock.n} OR ${stock.t}`
+  const params = new URLSearchParams()
+  params.set('q', q)
+  if (opts.debug) params.set('debug', '1')
+  const url = `/api/news?${params.toString()}`
+
   const res = await fetch(url, opts.bypassCache ? { cache: 'no-store' } : {})
   if (!res.ok) throw new Error('فشل جلب الأخبار')
   const data = await res.json()
@@ -75,7 +82,6 @@ async function fetchNewsForStock(stock: {
   const sectorKeywords: string[] = sectorInfo?.kw ?? []
 
   const normName = normalizeArabic(stock.n)
-  // Build alternative name fragments (e.g., "أرامكو السعودية" → also try "أرامكو")
   const nameFragments = stock.n
     .split(/\s+/)
     .map(w => normalizeArabic(w))
@@ -101,9 +107,13 @@ async function fetchNewsForStock(stock: {
     else if (nameFragments.some(frag => normText.includes(frag))) {
       matchType = 'direct'
     }
-    // 4) Sector keyword match (weaker signal)
+    // 4) Sector keyword match (weaker signal — only kept for non-Google sources)
     else if (sectorKeywords.some(kw => normText.includes(normalizeArabic(kw)))) {
       matchType = 'sector'
+    }
+    // 5) For Google News results: trust the search (Google already matched it)
+    else if (item.sourceId === 'gnews_q') {
+      matchType = 'direct'
     }
 
     if (matchType) {
