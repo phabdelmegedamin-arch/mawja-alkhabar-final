@@ -16,7 +16,6 @@ const WAVE_META = {
     rule:      'علاقة تشغيلية مباشرة',
     badgeBg:   'var(--amber)',
     badgeColor:'var(--ink)',
-    barClass:  'w1' as const,
   },
   2: {
     title:     'الموجة الثانية · أثر قطاعي',
@@ -25,7 +24,6 @@ const WAVE_META = {
     rule:      'انتماء قطاعي مشترك',
     badgeBg:   'var(--amber-deep)',
     badgeColor:'var(--cream)',
-    barClass:  'w2' as const,
   },
   3: {
     title:     'الموجة الثالثة · أثر سوقي عام',
@@ -34,17 +32,24 @@ const WAVE_META = {
     rule:      'تحرّك مؤشرات السوق',
     badgeBg:   'var(--cream-deep)',
     badgeColor:'var(--ink)',
-    barClass:  'w3' as const,
   },
 } as const
 
 export default function WaveAccordion({ result, wave, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen)
   const meta = WAVE_META[wave]
-  const { ripples, sentiment } = result
+  const { ripples, sentiment, originCode } = result
 
-  /* استخراج أسهم هذه الموجة */
-  const stocks = ripples.filter(r => !r.isHead && r.wave === wave)
+  /* ═══════════════════════════════════════════════════════
+     استخراج أسهم هذه الموجة
+     - استبعاد الـ head (السهم المحوري الأساسي)
+     - استبعاد السهم المحوري نفسه (إن ظهر بشكل آخر)
+     ═══════════════════════════════════════════════════════ */
+  const stocks = ripples.filter(r =>
+    !r.isHead &&
+    r.wave === wave &&
+    r.t !== originCode
+  )
 
   if (stocks.length === 0) return null
 
