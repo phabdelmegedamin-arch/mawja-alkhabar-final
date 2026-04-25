@@ -14,7 +14,7 @@ const NAV = [
 
 function Logo() {
   return (
-    <svg width="46" height="46" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="موجة الخبر" style={{ flexShrink: 0 }}>
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-label="موجة الخبر" className="hdr-logo" style={{ flexShrink: 0 }}>
       <circle cx="8" cy="24" r="3" fill="#F5B71C" />
       <path d="M 16 14 Q 22 24, 16 34" stroke="#0F0F0F" strokeWidth="2.5" fill="none" strokeLinecap="round" />
       <path d="M 24 8 Q 34 24, 24 40" stroke="#0F0F0F" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.5" />
@@ -43,15 +43,33 @@ export default function Header() {
         WebkitBackdropFilter: 'blur(8px)',
       }}
     >
+      {/* CSS متجاوب — إخفاء قائمة الديسكتوب على الموبايل (تظهر في BottomNav) */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .hdr-inner    { padding: 22px 48px; gap: 24px; }
+        .hdr-nav      { display: flex; align-items: center; gap: 40px; }
+        .hdr-tools    { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .hdr-brand-sub{ display: inline; }
+        .hdr-tool-icon{ width: 40px; height: 40px; }
+        .hdr-en       { display: inline-flex; }
+        .hdr-logo     { width: 46px; height: 46px; }
+        .hdr-brand-title { font-size: 22px; }
+
+        @media (max-width: 768px) {
+          .hdr-inner    { padding: 12px 14px; gap: 8px; }
+          .hdr-nav      { display: none; }
+          .hdr-brand-sub{ display: none; }
+          .hdr-tool-icon{ width: 36px; height: 36px; }
+          .hdr-en       { display: none; }
+          .hdr-logo     { width: 34px; height: 34px; }
+          .hdr-brand-title { font-size: 16px; }
+        }
+      `}} />
+
       <div
+        className="hdr-inner flex items-center justify-between"
         style={{
           maxWidth: '1320px',
           margin: '0 auto',
-          padding: '22px 48px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '24px',
         }}
       >
         {/* اللوجو */}
@@ -60,42 +78,44 @@ export default function Header() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '14px',
+            gap: '10px',
             textDecoration: 'none',
             flexShrink: 0,
+            minWidth: 0,
           }}
         >
           <Logo />
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, gap: '5px' }}>
-            <span style={{
-              fontFamily: 'var(--sans)',
-              fontSize: '22px',
-              fontWeight: 600,
-              color: 'var(--ink)',
-              letterSpacing: '-0.015em',
-            }}>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, gap: '5px', minWidth: 0 }}>
+            <span
+              className="hdr-brand-title"
+              style={{
+                fontFamily: 'var(--sans)',
+                fontWeight: 600,
+                color: 'var(--ink)',
+                letterSpacing: '-0.015em',
+                whiteSpace: 'nowrap',
+              }}
+            >
               موجة الخبر
             </span>
-            <span style={{
-              fontFamily: 'var(--sans-lat)',
-              fontSize: '9px',
-              fontWeight: 500,
-              color: 'var(--muted)',
-              letterSpacing: '0.22em',
-            }}>
+            <span
+              className="hdr-brand-sub"
+              style={{
+                fontFamily: 'var(--sans-lat)',
+                fontSize: '9px',
+                fontWeight: 500,
+                color: 'var(--muted)',
+                letterSpacing: '0.22em',
+                whiteSpace: 'nowrap',
+              }}
+            >
               MAWJA · NEWS SENTIMENT
             </span>
           </div>
         </Link>
 
-        {/* التبويبات في المنتصف */}
-        <nav
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '40px',
-          }}
-        >
+        {/* قائمة الديسكتوب — تخفى على الموبايل */}
+        <nav className="hdr-nav">
           {NAV.map(item => {
             const active = isActive(item.href)
             return (
@@ -130,13 +150,12 @@ export default function Header() {
         </nav>
 
         {/* الأدوات */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <div className="hdr-tools">
           <Link
             href="/admin"
             title="دخول لوحة الأدمن"
+            className="hdr-tool-icon"
             style={{
-              width: '40px',
-              height: '40px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -154,9 +173,8 @@ export default function Header() {
 
           <button
             title="الإشعارات"
+            className="hdr-tool-icon"
             style={{
-              width: '40px',
-              height: '40px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -173,6 +191,7 @@ export default function Header() {
           </button>
 
           <button
+            className="hdr-en"
             style={{
               height: '40px',
               padding: '0 14px',
@@ -184,6 +203,7 @@ export default function Header() {
               color: 'var(--ink)',
               cursor: 'pointer',
               letterSpacing: '0.08em',
+              alignItems: 'center',
             }}
           >
             EN
@@ -195,18 +215,28 @@ export default function Header() {
                 onClick={() => setMenuOpen(!menuOpen)}
                 style={{
                   height: '40px',
-                  padding: '0 6px 0 14px',
+                  padding: '0 6px 0 12px',
                   background: 'var(--ink)',
                   color: 'var(--cream)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
+                  gap: '8px',
                   fontSize: '13px',
                   cursor: 'pointer',
                   border: 'none',
+                  maxWidth: '160px',
                 }}
               >
-                <span style={{ fontWeight: 500 }}>{session.name}</span>
+                <span
+                  style={{
+                    fontWeight: 500,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {session.name}
+                </span>
                 {(session.plan === 'pro' || session.plan === 'admin') && (
                   <span style={{
                     fontFamily: 'var(--sans-lat)',
@@ -216,6 +246,7 @@ export default function Header() {
                     padding: '3px 6px',
                     background: 'var(--amber)',
                     color: 'var(--ink)',
+                    flexShrink: 0,
                   }}>
                     {session.plan === 'admin' ? 'ADMIN' : 'PRO'}
                   </span>
