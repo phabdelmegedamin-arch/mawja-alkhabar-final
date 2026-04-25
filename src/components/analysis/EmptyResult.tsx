@@ -3,7 +3,7 @@
 export default function EmptyResult() {
   return (
     <aside
-      className="flex flex-col items-center justify-center text-center h-full relative overflow-hidden"
+      className="empty-result flex flex-col items-center justify-center text-center h-full relative overflow-hidden"
       style={{
         padding: '40px 36px',
         background: 'var(--ink)',
@@ -11,11 +11,21 @@ export default function EmptyResult() {
         minHeight: '480px',
       }}
     >
+      {/* CSS متجاوب — تقليل الارتفاع والحشوة على الموبايل */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 900px) {
+          .empty-result { min-height: 260px !important; padding: 28px 20px !important; }
+          .empty-result .er-icon  { width: 44px; height: 44px; }
+          .empty-result .er-title { font-size: 16px !important; }
+          .empty-result .er-desc  { font-size: 12px !important; max-width: 220px !important; }
+        }
+      `}} />
+
       <div
         className="absolute"
         style={{
-          top: '40px',
-          right: '36px',
+          top: '24px',
+          right: '24px',
           width: '40px',
           height: '4px',
           background: 'var(--amber)',
@@ -34,11 +44,11 @@ export default function EmptyResult() {
       />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ marginBottom: '24px', color: 'rgba(244, 239, 230, 0.20)' }}>
-          <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+        <div style={{ marginBottom: '20px', color: 'rgba(244, 239, 230, 0.20)' }}>
+          <svg className="er-icon" width="60" height="60" viewBox="0 0 60 60" fill="none">
             <circle cx="14" cy="30" r="4" fill="#F5B71C" />
             <path d="M 22 30 Q 30 18, 38 30 T 54 30" stroke="rgba(244,239,230,0.25)" strokeWidth="2" fill="none" strokeLinecap="round" />
-            <path d="M 22 30 Q 30 22, 38 30 T 54 30" stroke="rgba(244,239,230,0.5)" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <path d="M 22 30 Q 30 22, 38 30 T 54 30" stroke="rgba(244,239,230,0.5)"  strokeWidth="2" fill="none" strokeLinecap="round" />
             <path d="M 22 30 Q 30 26, 38 30 T 54 30" stroke="rgba(244,239,230,0.85)" strokeWidth="2.2" fill="none" strokeLinecap="round" />
           </svg>
         </div>
@@ -54,7 +64,7 @@ export default function EmptyResult() {
           جاهز للقياس
         </div>
 
-        <h3 style={{
+        <h3 className="er-title" style={{
           fontSize: '18px',
           fontWeight: 500,
           marginBottom: '10px',
@@ -63,19 +73,19 @@ export default function EmptyResult() {
           أدخل خبراً لقياس اتجاهه
         </h3>
 
-        <p style={{
+        <p className="er-desc" style={{
           fontSize: '12.5px',
           maxWidth: '260px',
           lineHeight: 1.7,
-          marginBottom: '24px',
+          marginBottom: '20px',
         }}>
           ستظهر هنا: الاتجاه العام، القطاع، نسبة الثقة، والأسهم المتأثرة
         </p>
 
         <div
-          className="flex items-center justify-center"
+          className="flex items-center justify-center flex-wrap"
           style={{
-            gap: '12px',
+            gap: '10px',
             fontSize: '10px',
             textTransform: 'uppercase',
             letterSpacing: '0.15em',
