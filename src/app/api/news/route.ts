@@ -3,16 +3,29 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'edge'
  
 /* ──────────────────────────────────────────────────────────
-   مصادر RSS — سعودية + عربية + عالمية
+   مصادر RSS — الروابط الصحيحة (تم التحقق منها مباشرة)
    ────────────────────────────────────────────────────────── */
 const SOURCES = [
-  { id: 'argaam',    name: 'أرقام',       icon: '📊', url: 'https://www.argaam.com/ar/rss/' },
-  { id: 'mubasher',  name: 'مباشر',       icon: '📈', url: 'https://www.mubasher.info/rss/sa' },
-  { id: 'aleqt',     name: 'الاقتصادية',  icon: '📰', url: 'https://www.aleqt.com/rss.php' },
-  { id: 'spa',       name: 'واس',         icon: '🇸🇦', url: 'https://www.spa.gov.sa/rss.php?l=ar' },
-  { id: 'cnbcar',    name: 'CNBC عربية',  icon: '🌐', url: 'https://www.cnbcarabia.com/rss/all' },
-  { id: 'reuters',   name: 'رويترز',      icon: '🌐', url: 'https://feeds.reuters.com/reuters/businessNews' },
+  // Argaam — أهم مصدر للأخبار السعودية الاقتصادية
+  { id: 'argaam_main', name: 'أرقام',         icon: '📊', url: 'https://www.argaam.com/ar/rss/ho-main-news?sectionid=1524' },
+  { id: 'argaam_disc', name: 'أرقام-إفصاحات', icon: '📋', url: 'https://www.argaam.com/ar/rss/ho-company-disclosures?sectionid=244' },
+  { id: 'argaam_co',   name: 'أرقام-شركات',  icon: '🏢', url: 'https://www.argaam.com/ar/rss/companies?sectionid=1542' },
+ 
+  // Mubasher
+  { id: 'mubasher',    name: 'مباشر',         icon: '📈', url: 'https://www.mubasher.info/rss/sa' },
+ 
+  // Saudi Press Agency
+  { id: 'spa',         name: 'واس',           icon: '🇸🇦', url: 'https://www.spa.gov.sa/rss.php?l=ar' },
+ 
+  // CNBC Arabia (markets)
+  { id: 'cnbcar',      name: 'CNBC عربية',    icon: '🌐', url: 'https://www.cnbcarabia.com/rss/all' },
 ]
+ 
+/* Google News RSS — يعمل من أي مكان، لا يحتاج وسيط */
+function googleNewsSearchUrl(query: string): string {
+  // hl=ar (لغة الواجهة) | gl=SA (الموقع: السعودية) | ceid=SA:ar (تركيبة المنطقة:اللغة)
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ar&gl=SA&ceid=SA:ar`
+}
  
 /* ──────────────────────────────────────────────────────────
    GET handler
@@ -20,53 +33,74 @@ const SOURCES = [
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const sourceId = searchParams.get('source')
+  const query    = searchParams.get('q')                // بحث عن سهم/كلمة
   const debug    = searchParams.get('debug') === '1'
-  const sources  = sourceId ? SOURCES.filter(s => s.id === sourceId) : SOURCES
  
-  const results = await Promise.allSettled(
-    sources.map(src => fetchSource(src))
-  )
+  // ─── حالة 1: بحث محدد عن سهم → Google News + بعض المصادر ───
+  if (query) {
+    const sources = [
+      { id: 'gnews_q',  name: 'Google News', icon: '🔎', url: googleNewsSearchUrl(query) },
+      // إضافة أرقام كمصدر ثانوي (في حال احتوى أخبار حديثة عن السهم)
+      ...SOURCES.filter(s => s.id === 'argaam_main' || s.id === 'argaam_disc'),
+    ]
  
-  // Per-source diagnostics for debugging
-  const diagnostics = results.map((r, i) => ({
-    source: sources[i].id,
-    status: r.status,
-    count:  r.status === 'fulfilled' ? r.value.items.length : 0,
-    via:    r.status === 'fulfilled' ? r.value.via : 'failed',
-    error:  r.status === 'rejected' ? String(r.reason).slice(0, 120) : undefined,
-  }))
+    const results = await Promise.allSettled(sources.map(src => fetchSource(src)))
+    const items = mergeResults(results, /* limit */ 40)
+    const diagnostics = buildDiagnostics(results, sources)
  
-  const items = results
-    .flatMap(r => r.status === 'fulfilled' ? r.value.items : [])
-    .filter((item, idx, arr) => arr.findIndex(x => x.id === item.id) === idx)
-    .sort((a, b) => b.fetchedAt - a.fetchedAt)
-    .slice(0, 60)
- 
-  const payload: any = {
-    success: true,
-    data:    items,
-    count:   items.length,
+    return jsonResponse(items, debug ? diagnostics : undefined, query)
   }
-  if (debug) payload.diagnostics = diagnostics
+ 
+  // ─── حالة 2: الخلاصة العامة (كل المصادر) ───
+  const sources = sourceId ? SOURCES.filter(s => s.id === sourceId) : SOURCES
+  const results = await Promise.allSettled(sources.map(src => fetchSource(src)))
+  const items   = mergeResults(results, 60)
+  const diagnostics = buildDiagnostics(results, sources)
+ 
+  return jsonResponse(items, debug ? diagnostics : undefined)
+}
+ 
+function jsonResponse(items: any[], diagnostics: any[] | undefined, query?: string) {
+  const payload: any = { success: true, data: items, count: items.length }
+  if (query) payload.query = query
+  if (diagnostics) payload.diagnostics = diagnostics
  
   return NextResponse.json(payload, {
     headers: {
-      // 5 min CDN cache, 1 min stale-while-revalidate
       'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60',
     },
   })
 }
  
+function mergeResults(results: PromiseSettledResult<{ items: FetchedItem[]; via: string }>[], limit: number) {
+  return results
+    .flatMap(r => r.status === 'fulfilled' ? r.value.items : [])
+    .filter((item, idx, arr) => arr.findIndex(x => x.id === item.id) === idx)
+    .sort((a, b) => b.fetchedAt - a.fetchedAt)
+    .slice(0, limit)
+}
+ 
+function buildDiagnostics(
+  results: PromiseSettledResult<{ items: FetchedItem[]; via: string }>[],
+  sources: { id: string }[],
+) {
+  return results.map((r, i) => ({
+    source: sources[i].id,
+    status: r.status,
+    count:  r.status === 'fulfilled' ? r.value.items.length : 0,
+    via:    r.status === 'fulfilled' ? r.value.via : 'failed',
+    error:  r.status === 'rejected' ? String((r as any).reason).slice(0, 120) : undefined,
+  }))
+}
+ 
 /* ──────────────────────────────────────────────────────────
    fetchSource — 3 طبقات احتياطية
-   1) Direct fetch (الأسرع والأكثر موثوقية على Edge)
-   2) rss2json.com  (احتياط)
-   3) allorigins.win (احتياط أخير)
    ────────────────────────────────────────────────────────── */
 type FetchedItem = ReturnType<typeof parseJsonItem>
-async function fetchSource(src: typeof SOURCES[0]): Promise<{ items: FetchedItem[]; via: string }> {
  
-  /* ─── Layer 1: Direct fetch — Edge runtime, no CORS ─── */
+async function fetchSource(src: { id: string; name: string; icon: string; url: string }): Promise<{ items: FetchedItem[]; via: string }> {
+ 
+  /* ─── Layer 1: Direct fetch (Edge runtime, no CORS) ─── */
   try {
     const res = await fetch(src.url, {
       signal: AbortSignal.timeout(8000),
@@ -75,7 +109,7 @@ async function fetchSource(src: typeof SOURCES[0]): Promise<{ items: FetchedItem
         'Accept':          'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
         'Accept-Language': 'ar,en;q=0.9',
       },
-      // @ts-ignore — Next.js Edge supports this option
+      // @ts-ignore
       cache: 'no-store',
     })
     if (res.ok) {
@@ -87,8 +121,8 @@ async function fetchSource(src: typeof SOURCES[0]): Promise<{ items: FetchedItem
  
   /* ─── Layer 2: rss2json ─── */
   try {
-    const url  = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}&count=15`
-    const res  = await fetch(url, { signal: AbortSignal.timeout(7000) })
+    const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}&count=15`
+    const res = await fetch(url, { signal: AbortSignal.timeout(7000) })
     if (res.ok) {
       const data = await res.json()
       if (data?.status === 'ok' && Array.isArray(data.items)) {
@@ -98,7 +132,7 @@ async function fetchSource(src: typeof SOURCES[0]): Promise<{ items: FetchedItem
     }
   } catch {}
  
-  /* ─── Layer 3: allorigins proxy ─── */
+  /* ─── Layer 3: allorigins ─── */
   try {
     const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`
     const res   = await fetch(proxy, { signal: AbortSignal.timeout(8000) })
@@ -115,7 +149,7 @@ async function fetchSource(src: typeof SOURCES[0]): Promise<{ items: FetchedItem
 /* ──────────────────────────────────────────────────────────
    Parsers
    ────────────────────────────────────────────────────────── */
-function parseJsonItem(it: any, src: typeof SOURCES[0]) {
+function parseJsonItem(it: any, src: { id: string; name: string; icon: string }) {
   const title = cleanText(it.title ?? '')
   const desc  = cleanText(it.description ?? '').slice(0, 240)
   const pub   = it.pubDate ?? it.published ?? ''
@@ -134,11 +168,10 @@ function parseJsonItem(it: any, src: typeof SOURCES[0]) {
   }
 }
  
-function parseXMLFeed(xml: string, src: typeof SOURCES[0]) {
+function parseXMLFeed(xml: string, src: { id: string; name: string; icon: string }) {
   const items: ReturnType<typeof parseJsonItem>[] = []
   if (!xml) return items
  
-  // Matches both <item>...</item> (RSS 2.0) and <entry>...</entry> (Atom)
   const re = /<(item|entry)\b[^>]*>([\s\S]*?)<\/\1>/g
   let m: RegExpExecArray | null
   while ((m = re.exec(xml)) !== null && items.length < 15) {
@@ -157,7 +190,6 @@ function parseXMLFeed(xml: string, src: typeof SOURCES[0]) {
     if (tag === 'item') {
       link = getTag(raw, 'link').trim()
     } else {
-      // Atom: <link href="..." />
       const lm = /<link[^>]*href=["']([^"']+)["'][^>]*\/?>/i.exec(raw)
       link = lm ? lm[1] : ''
     }
