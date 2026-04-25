@@ -5,12 +5,6 @@ import EmptyResult from './EmptyResult'
 import LoadingResult from './LoadingResult'
 import { useAnalysisStore } from '@/store/analysis'
 
-/* ═══════════════════════════════════════════════════════
-   إطار التحليل الكامل — مطابق لـ v7 HTML
-   - حدود سوداء حول كل الإطار (.analyzer-frame)
-   - شريط التبويبات في الأعلى
-   - عمودين: إدخال (1fr) + نتيجة (380px)
-   ═══════════════════════════════════════════════════════ */
 export default function AnalyzerFrame() {
   const { result, isLoading } = useAnalysisStore()
 
@@ -28,12 +22,10 @@ export default function AnalyzerFrame() {
             gridTemplateColumns: 'minmax(0, 1fr) 380px',
           }}
         >
-          {/* ═══ الجانب الأيمن: الإدخال ═══ */}
           <div style={{ borderLeft: '1px solid var(--ink)' }}>
             <NewsInput />
           </div>
 
-          {/* ═══ الجانب الأيسر: النتيجة ═══ */}
           <div>
             {isLoading ? (
               <LoadingResult />
