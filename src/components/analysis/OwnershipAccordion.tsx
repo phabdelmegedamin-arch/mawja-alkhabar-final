@@ -1,18 +1,21 @@
 'use client'
 import { useState } from 'react'
-import Accordion from '@/components/ui/Accordion'
 import type { AnalysisResult, NetworkImpactItem } from '@/types'
 
 interface Props { result: AnalysisResult }
 
+/* ═══════════════════════════════════════════════════════
+   شبكة الملكية — مطابق لـ v7 HTML
+   ═══════════════════════════════════════════════════════ */
 export default function OwnershipAccordion({ result }: Props) {
+  const [open, setOpen] = useState(true)
   const { networkResult, originCode } = result
 
   if (!networkResult || !originCode) return null
 
   const { impacts } = networkResult
 
-  // المالكون (UPWARD) — مرتّبون تنازلياً حسب نسبة الملكية
+  /* المالكون (UPWARD) — تنازلياً حسب نسبة الملكية */
   const owners = impacts
     .filter(i => i.propagationDir === 'UPWARD' && i.ownershipPct !== null)
     .sort((a, b) => (b.ownershipPct ?? 0) - (a.ownershipPct ?? 0))
@@ -20,246 +23,319 @@ export default function OwnershipAccordion({ result }: Props) {
   if (owners.length === 0) return null
 
   const topOwner = owners[0]
+  const maxPct   = topOwner.ownershipPct ?? 100
+
+  /* السهم المحوري للعرض في عنوان القسم */
+  const originName = networkResult.meta.originStock.name
 
   return (
-    <Accordion
-      accentColor="var(--tx)"
-      badge={
-        <div
-          className="w-7 h-7 rounded flex items-center justify-center text-[12px] font-semibold"
-          style={{ background: 'var(--tx)', color: 'var(--bg)' }}
-        >
-          ⊕
-        </div>
-      }
-      title="شبكة الملكية"
-      subtitle={`${owners.length} مالك`}
-      preview={
-        <div className="flex items-center gap-2 text-[12px]">
-          <span style={{ color: 'var(--t3)' }}>أكبر مالك:</span>
-          <span className="font-medium" style={{ color: 'var(--tx)' }}>
-            {topOwner.stockName}
-          </span>
-          <span
-            className="mono-num font-semibold px-1.5 py-0.5 rounded"
-            style={{ background: 'var(--ac2)', color: 'var(--ac)' }}
-          >
-            {topOwner.ownershipPct?.toFixed(1)}%
-          </span>
-        </div>
-      }
-    >
-      <div className="p-4">
-        <div
-          className="text-[11px] mb-3 pb-2"
-          style={{ color: 'var(--t3)', borderBottom: '1px solid var(--b1)' }}
-        >
-          جميع الشركات المالكة — مرتّبة تنازلياً حسب نسبة الملكية
-        </div>
-
-        <div className="space-y-1.5">
-          {owners.map((owner, idx) => (
-            <OwnerRow key={owner.stockCode} owner={owner} rank={idx + 1} />
-          ))}
-        </div>
+    <>
+      {/* ═══ Section Eyebrow + Title ═══ */}
+      <div style={{
+        fontFamily: 'var(--sans-lat)',
+        fontSize: '11px',
+        fontWeight: 500,
+        color: 'var(--muted)',
+        letterSpacing: '0.2em',
+        marginBottom: '8px',
+      }}>
+        OWNERSHIP NETWORK
       </div>
-    </Accordion>
-  )
-}
 
-function OwnerRow({ owner, rank }: { owner: NetworkImpactItem; rank: number }) {
-  const [expanded, setExpanded] = useState(false)
-  const pct = owner.ownershipPct ?? 0
-  const barW = Math.min(100, pct)
-
-  const relColor = owner.relationType === 'DIRECT'
-    ? 'var(--gr)'
-    : owner.relationType === 'INDIRECT'
-    ? 'var(--yl)'
-    : 'var(--t2)'
-
-  const relLabel = owner.relationType === 'DIRECT'
-    ? 'مباشر'
-    : owner.relationType === 'INDIRECT'
-    ? 'غير مباشر'
-    : owner.relationType === 'OPERATIONAL'
-    ? 'تشغيلي'
-    : 'معنوي'
-
-  return (
-    <div
-      className="rounded transition-colors"
-      style={{
-        background: expanded ? 'var(--bg3)' : 'transparent',
-        border:     '1px solid ' + (expanded ? 'var(--b2)' : 'transparent'),
-      }}
-    >
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center gap-3 px-2.5 py-2 text-right hover:bg-[var(--bg3)] rounded transition-colors"
+      <div
+        className="flex items-end justify-between"
+        style={{
+          fontFamily: 'var(--sans)',
+          fontSize: '22px',
+          fontWeight: 500,
+          color: 'var(--ink)',
+          letterSpacing: '-0.015em',
+          marginBottom: '20px',
+          paddingBottom: '14px',
+          borderBottom: '1px solid var(--ink)',
+        }}
       >
-        {/* Rank */}
-        <span
-          className="mono-num text-[10px] font-medium w-5 text-center shrink-0"
-          style={{ color: 'var(--t3)' }}
-        >
-          {String(rank).padStart(2, '0')}
+        <span>شبكة الملكية</span>
+        <span style={{
+          fontFamily: 'var(--sans-lat)',
+          fontSize: '12px',
+          color: 'var(--muted)',
+          fontWeight: 500,
+          letterSpacing: '0.05em',
+        }}>
+          السهم المحوري:{' '}
+          <strong style={{ color: 'var(--ink)', fontWeight: 500 }}>
+            {originName} · {originCode}
+          </strong>
         </span>
+      </div>
 
-        {/* Owner name + ticker */}
-        <div className="flex-1 min-w-0 flex items-center gap-2">
-          <span
-            className="mono-num text-[11px] font-medium px-1.5 py-0.5 rounded shrink-0"
-            style={{ background: 'var(--ac2)', color: 'var(--ac)' }}
-          >
-            {owner.stockCode}
-          </span>
-          <span
-            className="text-[13px] truncate"
-            style={{ color: 'var(--tx)' }}
-          >
-            {owner.stockName}
-          </span>
-          <span
-            className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-            style={{
-              background: 'transparent',
-              color:      relColor,
-              border:     `1px solid ${relColor}40`,
-            }}
-          >
-            {relLabel}
-          </span>
-        </div>
-
-        {/* Ownership bar */}
-        <div className="hidden sm:flex items-center gap-2 w-[140px] shrink-0">
-          <div
-            className="flex-1 h-[4px] rounded-full overflow-hidden"
-            style={{ background: 'var(--b1)' }}
-          >
-            <div
-              style={{
-                width:      `${barW}%`,
-                height:     '100%',
-                background: 'var(--ac)',
-                transition: 'width 0.6s ease',
-              }}
-            />
-          </div>
-          <span
-            className="mono-num text-[12px] font-semibold w-12 text-left"
-            style={{ color: 'var(--ac)' }}
-          >
-            {pct.toFixed(1)}%
-          </span>
-        </div>
-
-        {/* Mobile percentage */}
-        <span
-          className="sm:hidden mono-num text-[12px] font-semibold"
-          style={{ color: 'var(--ac)' }}
-        >
-          {pct.toFixed(1)}%
-        </span>
-
-        {/* Chevron */}
-        <span
-          className="shrink-0 flex items-center justify-center w-4 h-4"
+      {/* ═══ Accordion ═══ */}
+      <div
+        style={{
+          border: '1px solid var(--ink)',
+          background: open ? 'var(--cream-soft)' : 'var(--cream)',
+          marginBottom: '12px',
+          transition: 'background 0.15s',
+        }}
+      >
+        {/* ═══ Head ═══ */}
+        <button
+          onClick={() => setOpen(!open)}
+          className="w-full grid items-center"
           style={{
-            color:     'var(--t3)',
-            transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition:'transform 0.2s',
+            padding: '20px 28px',
+            background: 'transparent',
+            border: 'none',
+            gridTemplateColumns: 'auto 1fr auto auto',
+            gap: '24px',
+            cursor: 'pointer',
+            fontFamily: 'var(--sans)',
+            textAlign: 'right',
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M3 1.5 L6.5 5 L3 8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      </button>
-
-      {/* Expanded details */}
-      {expanded && (
-        <div
-          className="px-4 py-3 text-[12px] animate-fade-in"
-          style={{ borderTop: '1px solid var(--b1)' }}
-        >
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            <Detail label="القطاع" value={owner.sector} />
-            <Detail label="نوع العلاقة" value={relLabel} color={relColor} />
-            <Detail
-              label="الطبقة"
-              value={`طبقة ${owner.layer}`}
-            />
-            <Detail
-              label="الملكية الفعلية"
-              value={`${(owner.effectiveOwn * 100).toFixed(2)}%`}
-              mono
-            />
-            <Detail
-              label="قوة الارتباط"
-              value={`${owner.strength}/10`}
-              mono
-            />
-            <Detail
-              label="الإطار الزمني"
-              value={owner.timeframeLabel}
-            />
+          {/* Badge */}
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: '44px',
+              height: '44px',
+              background: 'var(--ink)',
+              color: 'var(--cream)',
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '15px',
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              flexShrink: 0,
+            }}
+          >
+            ◎
           </div>
 
-          {owner.path && owner.path.length > 1 && (
-            <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--b1)' }}>
-              <div
-                className="text-[10px] uppercase tracking-[0.12em] mb-1.5"
-                style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
-              >
-                مسار الانتشار
+          {/* Title */}
+          <div className="flex flex-col" style={{ gap: '4px', textAlign: 'right' }}>
+            <div style={{
+              fontSize: '16px',
+              fontWeight: 500,
+              color: 'var(--ink)',
+              letterSpacing: '-0.005em',
+            }}>
+              الملاك المسجّلون للسهم
+            </div>
+            <div style={{
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '10px',
+              color: 'var(--muted)',
+              letterSpacing: '0.12em',
+            }}>
+              {owners.length} {owners.length === 1 ? 'مالك' : 'ملاك'} · مرتّبون تنازلياً بنسبة التملك
+            </div>
+          </div>
+
+          {/* Preview: top owner */}
+          <div
+            className="flex items-center"
+            style={{
+              gap: '14px',
+              paddingRight: '24px',
+              marginRight: '24px',
+              borderRight: '1px solid var(--rule)',
+            }}
+          >
+            <div>
+              <div style={{
+                fontFamily: 'var(--sans-lat)',
+                fontSize: '10px',
+                color: 'var(--muted)',
+                letterSpacing: '0.12em',
+                marginBottom: '3px',
+              }}>
+                أعلى ملكية
               </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                {owner.path.map((code, i) => (
-                  <span key={`${code}-${i}`} className="flex items-center gap-1">
-                    <span
-                      className="mono-num text-[11px] font-medium px-1.5 py-0.5 rounded"
-                      style={{ background: 'var(--ac2)', color: 'var(--ac)' }}
-                    >
-                      {code}
-                    </span>
-                    {i < owner.path.length - 1 && (
-                      <span style={{ color: 'var(--t3)', fontSize: '10px' }}>←</span>
-                    )}
-                  </span>
-                ))}
+              <div className="flex items-center" style={{ gap: '12px' }}>
+                <span style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: '11px',
+                  color: 'var(--muted)',
+                  background: 'var(--cream)',
+                  padding: '3px 7px',
+                  border: '1px solid var(--rule)',
+                }}>
+                  {topOwner.stockCode}
+                </span>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'var(--ink)',
+                }}>
+                  {topOwner.stockName}
+                </span>
               </div>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontFamily: 'var(--sans-lat)',
+                fontSize: '10px',
+                color: 'var(--muted)',
+                letterSpacing: '0.12em',
+                marginBottom: '3px',
+                textAlign: 'left',
+              }}>
+                النسبة
+              </div>
+              <span style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: 'var(--ink)',
+                direction: 'ltr',
+                display: 'inline-block',
+              }}>
+                {topOwner.ownershipPct?.toFixed(2)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Chevron */}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            style={{
+              color: 'var(--ink)',
+              transition: 'transform 0.2s',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          >
+            <path d="M 3 5 L 7 9 L 11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+
+        {/* ═══ Body ═══ */}
+        {open && (
+          <div style={{ borderTop: '1px solid var(--ink)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {owners.map((owner, idx) => (
+                  <OwnerRow key={owner.stockCode} owner={owner} rank={idx + 1} maxPct={maxPct} />
+                ))}
+              </tbody>
+            </table>
+
+            <div
+              className="flex items-center justify-between"
+              style={{
+                padding: '14px 28px',
+                background: 'var(--cream-deep)',
+                borderTop: '1px solid var(--rule)',
+                fontFamily: 'var(--sans-lat)',
+                fontSize: '11px',
+                color: 'var(--muted)',
+                letterSpacing: '0.05em',
+              }}
+            >
+              <span>المصدر: تداول السعودية · بيانات شبكة الملكية الموثقة</span>
+              <span>
+                إجمالي الملاك ·{' '}
+                <strong style={{ color: 'var(--ink)' }}>
+                  {owners.length}
+                </strong>
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
-function Detail({
-  label, value, color, mono,
+/* ═══ صف فردي في الجدول ═══ */
+function OwnerRow({
+  owner, rank, maxPct,
 }: {
-  label: string
-  value: string
-  color?: string
-  mono?: boolean
+  owner: NetworkImpactItem
+  rank:  number
+  maxPct: number
 }) {
+  const [hover, setHover] = useState(false)
+  const pct  = owner.ownershipPct ?? 0
+  const barW = Math.max(2, Math.min(100, (pct / maxPct) * 100))
+
   return (
-    <div>
-      <div
-        className="text-[10px] uppercase tracking-[0.1em] mb-0.5"
-        style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
-      >
-        {label}
-      </div>
-      <div
-        className={`text-[12px] font-medium ${mono ? 'mono-num' : ''}`}
-        style={{ color: color ?? 'var(--tx)' }}
-      >
-        {value}
-      </div>
-    </div>
+    <tr
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        borderBottom: '1px solid var(--rule)',
+        background: hover ? 'var(--cream)' : 'transparent',
+        transition: 'background 0.15s',
+      }}
+    >
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--muted)', width: '36px' }}>
+        {String(rank).padStart(2, '0')}
+      </td>
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle', fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--ink)', fontWeight: 500, width: '60px' }}>
+        {owner.stockCode}
+      </td>
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle' }}>
+        <div style={{
+          fontSize: '14px',
+          fontWeight: 500,
+          color: 'var(--ink)',
+          letterSpacing: '-0.005em',
+        }}>
+          {owner.stockName}
+        </div>
+        <div style={{
+          fontFamily: 'var(--sans-lat)',
+          fontSize: '10px',
+          color: 'var(--muted)',
+          marginTop: '2px',
+          letterSpacing: '0.03em',
+        }}>
+          OWNER · LAYER {owner.layer}
+        </div>
+      </td>
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle', fontSize: '12px', color: 'var(--muted)', width: '120px' }}>
+        {owner.sector}
+      </td>
+      <td style={{ padding: '14px 0', verticalAlign: 'middle', width: '200px' }}>
+        <div style={{ height: '2px', background: 'var(--rule)' }}>
+          <div style={{
+            width: `${barW}%`,
+            height: '100%',
+            background: 'var(--amber)',
+            transition: 'width 0.6s ease',
+          }} />
+        </div>
+      </td>
+      <td style={{
+        padding: '14px 28px',
+        verticalAlign: 'middle',
+        fontFamily: 'var(--mono)',
+        fontSize: '14px',
+        fontWeight: 500,
+        color: 'var(--ink)',
+        width: '90px',
+        textAlign: 'left',
+        direction: 'ltr',
+      }}>
+        {pct.toFixed(2)}%
+      </td>
+      <td style={{
+        padding: '14px 28px',
+        verticalAlign: 'middle',
+        width: '20px',
+        color: 'var(--ink)',
+        opacity: hover ? 1 : 0,
+        textAlign: 'left',
+        fontSize: '13px',
+        transition: 'all 0.2s',
+        transform: hover ? 'translateX(-4px)' : 'translateX(0)',
+      }}>
+        ←
+      </td>
+    </tr>
   )
 }
