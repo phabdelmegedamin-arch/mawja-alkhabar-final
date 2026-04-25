@@ -250,4 +250,3 @@ function simpleHash(s: string) {
   }
   return 'mw' + Math.abs(h).toString(36)
 }
- 
