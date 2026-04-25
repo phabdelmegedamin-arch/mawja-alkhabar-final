@@ -12,39 +12,88 @@ export default function NetworkImpactPanel({ result }: Props) {
   if (!hasOwnership && !hasWaves) {
     return (
       <div
-        className="card p-6 text-center"
-        style={{ background: 'var(--bg3)' }}
+        className="text-center"
+        style={{
+          padding: '24px 28px',
+          background: 'var(--cream-deep)',
+          border: '1px dashed var(--ink)',
+        }}
       >
-        <div
-          className="text-[11px] uppercase tracking-[0.15em] mb-2"
-          style={{ color: 'var(--t3)', fontFamily: 'var(--sans-lat)' }}
-        >
-          لا توجد موجات
+        <div style={{
+          fontFamily: 'var(--sans-lat)',
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.15em',
+          marginBottom: '8px',
+          color: 'var(--muted)',
+        }}>
+          NO NETWORK DATA
         </div>
-        <p className="text-[13px]" style={{ color: 'var(--t2)' }}>
-          لم نكتشف سهماً محدداً أو قطاعاً مرتبطاً في الخبر.
-          <br />
-          <span className="text-[11px]" style={{ color: 'var(--t3)' }}>
-            جرّب ذكر اسم شركة أو رمز سهم لتفعيل تحليل الشبكة.
-          </span>
+        <p style={{ fontSize: '13px', color: 'var(--ink-soft)' }}>
+          لم نكتشف سهماً محدداً أو قطاعاً مرتبطاً في الخبر. جرّب ذكر اسم شركة أو رمز سهم لتفعيل تحليل الشبكة.
         </p>
       </div>
     )
   }
 
+  /* عدّ الأسهم الكلي */
+  const totalStocks = result.ripples.filter(r => !r.isHead).length
+
   return (
-    <div className="space-y-3">
-      {/* 1. شبكة الملكية (إن وُجدت) */}
+    <section style={{ padding: '32px 0 0' }}>
+
+      {/* ═══ شبكة الملكية (إن وُجدت) ═══ */}
       {hasOwnership && <OwnershipAccordion result={result} />}
 
-      {/* 2. الموجة الأولى — مفتوحة افتراضياً */}
-      <WaveAccordion result={result} wave={1} defaultOpen />
+      {/* ═══ قسم الموجات ═══ */}
+      {hasWaves && (
+        <>
+          <div style={{
+            fontFamily: 'var(--sans-lat)',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'var(--muted)',
+            letterSpacing: '0.2em',
+            marginTop: hasOwnership ? '48px' : 0,
+            marginBottom: '8px',
+          }}>
+            WAVE PROPAGATION
+          </div>
 
-      {/* 3. الموجة الثانية */}
-      <WaveAccordion result={result} wave={2} />
+          <div
+            className="flex items-end justify-between"
+            style={{
+              fontFamily: 'var(--sans)',
+              fontSize: '22px',
+              fontWeight: 500,
+              color: 'var(--ink)',
+              letterSpacing: '-0.015em',
+              marginBottom: '20px',
+              paddingBottom: '14px',
+              borderBottom: '1px solid var(--ink)',
+            }}
+          >
+            <span>الأسهم المتأثرة بالخبر · 3 موجات</span>
+            <span style={{
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '12px',
+              color: 'var(--muted)',
+              fontWeight: 500,
+              letterSpacing: '0.05em',
+            }}>
+              إجمالي{' '}
+              <strong style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                {totalStocks} سهم
+              </strong>
+              {' '}متأثر
+            </span>
+          </div>
 
-      {/* 4. الموجة الثالثة */}
-      <WaveAccordion result={result} wave={3} />
-    </div>
+          <WaveAccordion result={result} wave={1} defaultOpen />
+          <WaveAccordion result={result} wave={2} />
+          <WaveAccordion result={result} wave={3} />
+        </>
+      )}
+    </section>
   )
 }
