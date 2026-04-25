@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
             formula:        r.formula,
             strength:       r.strength,
             // ✅ إصلاح جوهري: تمرير اتجاه الانتشار
-            // بدون هذا الحقل، OwnershipAccordion يفلتر بالـ UPWARD فيحصل على [] دائماً
+            // بدون هذا الحقل، OwnershipAccordion يفلتر بـ UPWARD فيحصل على [] دائماً
             propagationDir: r.propagationDir,
           })),
           warnings: engineResult.warnings,
