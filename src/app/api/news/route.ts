@@ -258,19 +258,54 @@ function getTag(s: string, tag: string) {
   return m ? m[1] : ''
 }
  
+/* ──────────────────────────────────────────────────────────
+   cleanText — تنظيف نص RSS بشكل آمن
+   الترتيب الصحيح: CDATA → فك الكيانات → إزالة الوسوم → إزالة الروابط
+   هذا الترتيب ضروري لأن بعض RSS تشفّر الوسوم ككيانات
+   (&lt;a href=...&gt;) فإن أزلنا الوسوم أولاً نجد الكيانات تتفك
+   لاحقاً إلى وسوم نصية تظهر للمستخدم.
+   ────────────────────────────────────────────────────────── */
 function cleanText(h: string) {
-  return h
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g,  '&')
-    .replace(/&lt;/g,   '<')
-    .replace(/&gt;/g,   '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g,  "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  if (!h) return ''
+  let s = h
+ 
+  // 1) فك CDATA
+  s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+ 
+  // 2) فك كيانات HTML المسمّاة والرقمية أولاً
+  s = s
+    .replace(/&amp;/g,   '&')
+    .replace(/&lt;/g,    '<')
+    .replace(/&gt;/g,    '>')
+    .replace(/&quot;/g,  '"')
+    .replace(/&apos;/g,  "'")
+    .replace(/&#39;/g,   "'")
+    .replace(/&nbsp;/g,  ' ')
+    .replace(/&laquo;/g, '«')
+    .replace(/&raquo;/g, '»')
+    .replace(/&hellip;/g,'…')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&#(\d+);/g,        (_, n) => {
+      try { return String.fromCodePoint(parseInt(n, 10)) } catch { return ' ' }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => {
+      try { return String.fromCodePoint(parseInt(n, 16)) } catch { return ' ' }
+    })
+ 
+  // 3) إزالة كل الوسوم (الآن أصبحت الكيانات وسوماً حقيقية)
+  s = s.replace(/<[^>]+>/g, ' ')
+ 
+  // 4) تكرار الخطوة (دفاع في العمق ضد التضمين المزدوج)
+  s = s.replace(/<[^>]+>/g, ' ')
+ 
+  // 5) إزالة الروابط الكاملة (RSS من Google News تحوي روابط Base64 طويلة)
+  s = s.replace(/https?:\/\/[^\s<>"']+/gi, ' ')
+ 
+  // 6) كيانات متبقية + توحيد المسافات
+  s = s.replace(/&[a-zA-Z0-9#]+;/g, ' ').replace(/\s+/g, ' ').trim()
+ 
+  return s
 }
  
 function parseDate(s: string): number {
@@ -287,3 +322,4 @@ function simpleHash(s: string) {
   }
   return 'mw' + Math.abs(h).toString(36)
 }
+ 
