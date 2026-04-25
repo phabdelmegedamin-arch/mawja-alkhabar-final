@@ -51,16 +51,25 @@ interface StockNewsItem {
 /* ═══════════════════════════════════════════
    News fetching + filtering for a given stock
    ═══════════════════════════════════════════ */
+interface FetchNewsResult {
+  matches: StockNewsItem[]
+  totalFetched: number
+  diagnostics?: Array<{ source: string; count: number; via: string; status: string }>
+}
+
 async function fetchNewsForStock(stock: {
   t: string
   n: string
   sector: string
   sectorKey: string
-}): Promise<StockNewsItem[]> {
-  const res = await fetch('/api/news', { cache: 'no-store' })
+}, opts: { debug?: boolean; bypassCache?: boolean } = {}): Promise<FetchNewsResult> {
+  const url = opts.debug ? '/api/news?debug=1' : '/api/news'
+  const res = await fetch(url, opts.bypassCache ? { cache: 'no-store' } : {})
   if (!res.ok) throw new Error('فشل جلب الأخبار')
   const data = await res.json()
-  if (!data?.success || !Array.isArray(data.data)) return []
+  if (!data?.success || !Array.isArray(data.data)) {
+    return { matches: [], totalFetched: 0, diagnostics: data?.diagnostics }
+  }
 
   const sectorInfo = (DB as any)[stock.sectorKey]
   const sectorKeywords: string[] = sectorInfo?.kw ?? []
@@ -117,7 +126,11 @@ async function fetchNewsForStock(stock: {
     return b.fetchedAt - a.fetchedAt
   })
 
-  return matches.slice(0, 20)
+  return {
+    matches: matches.slice(0, 20),
+    totalFetched: data.data.length,
+    diagnostics: data.diagnostics,
+  }
 }
 
 function timeAgoAr(ts: number): string {
@@ -150,6 +163,8 @@ export default function NewsInput() {
   const [newsLoading,  setNewsLoading]  = useState(false)
   const [newsError,    setNewsError]    = useState<string | null>(null)
   const [hasFetched,   setHasFetched]   = useState(false)
+  const [totalFetched, setTotalFetched] = useState(0)
+  const [refreshTick,  setRefreshTick]  = useState(0)
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -159,12 +174,13 @@ export default function NewsInput() {
     return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  /* ── Auto-fetch news whenever a stock is selected ─── */
+  /* ── Auto-fetch news whenever a stock is selected (or refresh) ─── */
   useEffect(() => {
     if (!selected) {
       setStockNews([])
       setNewsError(null)
       setHasFetched(false)
+      setTotalFetched(0)
       return
     }
     let cancelled = false
@@ -173,10 +189,11 @@ export default function NewsInput() {
     setStockNews([])
     setHasFetched(false)
 
-    fetchNewsForStock(selected)
-      .then(items => {
+    fetchNewsForStock(selected, { bypassCache: refreshTick > 0 })
+      .then(({ matches, totalFetched }) => {
         if (cancelled) return
-        setStockNews(items)
+        setStockNews(matches)
+        setTotalFetched(totalFetched)
         setHasFetched(true)
       })
       .catch(err => {
@@ -190,7 +207,9 @@ export default function NewsInput() {
       })
 
     return () => { cancelled = true }
-  }, [selected])
+  }, [selected, refreshTick])
+
+  const refreshNews = () => setRefreshTick(t => t + 1)
 
   const filtered = search
     ? SA_STOCKS.filter(s =>
@@ -633,13 +652,47 @@ export default function NewsInput() {
                     )}
                   </div>
 
-                  <span style={{
-                    fontSize: '11px',
-                    color: 'var(--muted)',
-                    fontFamily: 'var(--sans-lat)',
-                  }}>
-                    اضغط على خبر لبدء التحليل
-                  </span>
+                  <div className="flex items-center" style={{ gap: '14px' }}>
+                    <span style={{
+                      fontSize: '11px',
+                      color: 'var(--muted)',
+                      fontFamily: 'var(--sans-lat)',
+                    }}>
+                      اضغط على خبر لبدء التحليل
+                    </span>
+                    <button
+                      onClick={refreshNews}
+                      disabled={newsLoading}
+                      title="تحديث الأخبار"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        background: 'transparent',
+                        border: '1px solid var(--rule)',
+                        color: 'var(--ink)',
+                        fontFamily: 'var(--sans-lat)',
+                        fontSize: '11px',
+                        cursor: newsLoading ? 'wait' : 'pointer',
+                        opacity: newsLoading ? 0.5 : 1,
+                        letterSpacing: '0.1em',
+                      }}
+                    >
+                      <svg
+                        width="11" height="11" viewBox="0 0 24 24" fill="none"
+                        style={{
+                          animation: newsLoading ? 'spin 1s linear infinite' : 'none',
+                        }}
+                      >
+                        <path
+                          d="M3 12a9 9 0 0 1 15.2-6.5L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.2 6.5L3 16M3 21v-5h5"
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>تحديث</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* ─── Loading skeleton ─── */}
@@ -798,14 +851,40 @@ export default function NewsInput() {
                       marginBottom: '6px',
                       fontWeight: 500,
                     }}>
-                      لا توجد أخبار حديثة لـ {selected.n}
+                      {totalFetched === 0
+                        ? 'تعذّر جلب الأخبار من المصادر حالياً'
+                        : `لا توجد أخبار حديثة لـ ${selected.n}`}
                     </div>
                     <div style={{
                       fontSize: '12px',
                       color: 'var(--muted)',
                       lineHeight: 1.6,
                     }}>
-                      يمكنك إجراء تحليل عام للسهم بناءً على بياناته القطاعية، أو الانتقال للتبويب الأول وإدخال نص الخبر يدوياً.
+                      {totalFetched === 0 ? (
+                        <>
+                          مصادر الأخبار (أرقام، مباشر، الاقتصادية…) لم تستجب الآن.
+                          {' '}
+                          <button
+                            onClick={refreshNews}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--amber-deep)',
+                              cursor: 'pointer',
+                              padding: 0,
+                              textDecoration: 'underline',
+                              font: 'inherit',
+                            }}
+                          >
+                            إعادة المحاولة
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          فحصنا <strong style={{ color: 'var(--ink)' }}>{totalFetched}</strong> خبراً ولم نجد ذكراً لـ {selected.n}.
+                          يمكنك إجراء تحليل عام للسهم، أو الانتقال للتبويب الأول وإدخال نص الخبر يدوياً.
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
