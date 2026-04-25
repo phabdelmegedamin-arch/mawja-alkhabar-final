@@ -14,9 +14,10 @@ export default function OwnershipAccordion({ result }: Props) {
 
   /* ═══════════════════════════════════════════════════════
      فلسفة شبكة الملكية:
-     - تظهر فقط الأسهم المتملكة في بعضها (المدرجة فقط)
+     - تظهر فقط الأسهم المدرجة المتملّكة في السهم المحوري
      - الكود = 4 أرقام (سهم مدرج)
-     - استبعاد PIF / GOSI / GPFF / SA / PUB / INS / FI / RT
+     - استبعاد الكيانات الحكومية والصناديق غير المدرجة
+       (PIF / GOSI / GPFF / SA / PUB / INS / FI / RT)
      - استبعاد السهم المحوري نفسه
      ═══════════════════════════════════════════════════════ */
   const owners = impacts
@@ -36,6 +37,7 @@ export default function OwnershipAccordion({ result }: Props) {
 
   return (
     <>
+      {/* ═══ Section Eyebrow + Title ═══ */}
       <div style={{
         fontFamily: 'var(--sans-lat)',
         fontSize: '11px',
@@ -75,6 +77,7 @@ export default function OwnershipAccordion({ result }: Props) {
         </span>
       </div>
 
+      {/* ═══ Accordion ═══ */}
       <div
         style={{
           border: '1px solid var(--ink)',
@@ -83,6 +86,7 @@ export default function OwnershipAccordion({ result }: Props) {
           transition: 'background 0.15s',
         }}
       >
+        {/* ═══ Head ═══ */}
         <button
           onClick={() => setOpen(!open)}
           className="w-full grid items-center"
@@ -97,6 +101,7 @@ export default function OwnershipAccordion({ result }: Props) {
             textAlign: 'right',
           }}
         >
+          {/* Badge */}
           <div
             className="flex items-center justify-center"
             style={{
@@ -114,6 +119,7 @@ export default function OwnershipAccordion({ result }: Props) {
             ◎
           </div>
 
+          {/* Title */}
           <div className="flex flex-col" style={{ gap: '4px', textAlign: 'right' }}>
             <div style={{
               fontSize: '16px',
@@ -133,6 +139,7 @@ export default function OwnershipAccordion({ result }: Props) {
             </div>
           </div>
 
+          {/* Preview: top owner */}
           <div
             className="flex items-center"
             style={{
@@ -196,6 +203,7 @@ export default function OwnershipAccordion({ result }: Props) {
             </div>
           </div>
 
+          {/* Chevron */}
           <svg
             width="14"
             height="14"
@@ -211,6 +219,7 @@ export default function OwnershipAccordion({ result }: Props) {
           </svg>
         </button>
 
+        {/* ═══ Body ═══ */}
         {open && (
           <div style={{ borderTop: '1px solid var(--ink)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -233,7 +242,10 @@ export default function OwnershipAccordion({ result }: Props) {
                 letterSpacing: '0.05em',
               }}
             >
-              <span>قاعدة الربط: <strong style={{ color: 'var(--ink)' }}>أسهم مدرجة تملك في السهم المحوري</strong></span>
+              <span>
+                قاعدة الربط:{' '}
+                <strong style={{ color: 'var(--ink)' }}>أسهم مدرجة تملك في السهم المحوري</strong>
+              </span>
               <span>
                 إجمالي الأسهم المالكة ·{' '}
                 <strong style={{ color: 'var(--ink)' }}>
@@ -248,6 +260,7 @@ export default function OwnershipAccordion({ result }: Props) {
   )
 }
 
+/* ═══ صف فردي في الجدول ═══ */
 function OwnerRow({
   owner, rank, maxPct,
 }: {
