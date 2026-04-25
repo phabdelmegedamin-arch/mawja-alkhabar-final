@@ -1,192 +1,345 @@
 'use client'
-import Accordion from '@/components/ui/Accordion'
-import { useWatchlistStore } from '@/store/watchlist'
+import { useState } from 'react'
 import type { AnalysisResult, RippleNode } from '@/types'
 
 interface Props {
-  result:      AnalysisResult
-  wave:        1 | 2 | 3
+  result: AnalysisResult
+  wave: 1 | 2 | 3
   defaultOpen?: boolean
 }
 
 const WAVE_META = {
   1: {
-    title:       'الموجة الأولى',
-    subtitle:    'تأثير مباشر',
-    timeframe:   'خلال ساعات',
-    badgeBg:     'var(--ac2)',
-    badgeColor:  'var(--ac)',
-    accentColor: 'var(--ac)',
-    symbol:      '◉',
+    title:     'الموجة الأولى · أثر مباشر',
+    subtitle:  'DIRECT IMPACT · أسهم متأثرة مباشرة عبر علاقة تشغيلية',
+    badge:     'W1',
+    rule:      'علاقة تشغيلية مباشرة',
+    badgeBg:   'var(--amber)',
+    badgeColor:'var(--ink)',
+    barClass:  'w1' as const,
   },
   2: {
-    title:       'الموجة الثانية',
-    subtitle:    'ارتباط قطاعي',
-    timeframe:   'خلال أيام',
-    badgeBg:     'rgba(184, 92, 0, 0.12)',
-    badgeColor:  'var(--or)',
-    accentColor: 'var(--or)',
-    symbol:      '◎',
+    title:     'الموجة الثانية · أثر قطاعي',
+    subtitle:  'SECTOR SPILLOVER · أسهم تشترك في نفس القطاع',
+    badge:     'W2',
+    rule:      'انتماء قطاعي مشترك',
+    badgeBg:   'var(--amber-deep)',
+    badgeColor:'var(--cream)',
+    barClass:  'w2' as const,
   },
   3: {
-    title:       'الموجة الثالثة',
-    subtitle:    'انتشار سوقي',
-    timeframe:   'خلال أسابيع',
-    badgeBg:     'var(--bg4)',
-    badgeColor:  'var(--t2)',
-    accentColor: 'var(--t2)',
-    symbol:      '○',
+    title:     'الموجة الثالثة · أثر سوقي عام',
+    subtitle:  'MARKET SENTIMENT · أثر غير مباشر على مؤشرات السوق',
+    badge:     'W3',
+    rule:      'تحرّك مؤشرات السوق',
+    badgeBg:   'var(--cream-deep)',
+    badgeColor:'var(--ink)',
+    barClass:  'w3' as const,
   },
 } as const
 
 export default function WaveAccordion({ result, wave, defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen)
   const meta = WAVE_META[wave]
   const { ripples, sentiment } = result
 
-  // استخراج أسهم هذه الموجة
+  /* استخراج أسهم هذه الموجة */
   const stocks = ripples.filter(r => !r.isHead && r.wave === wave)
 
   if (stocks.length === 0) return null
 
-  const abs = Math.abs(sentiment.score)
+  /* ترتيب تنازلي حسب التأثر */
+  const sorted = [...stocks].sort((a, b) => Math.abs(b.pctVal ?? 0) - Math.abs(a.pctVal ?? 0))
+  const top    = sorted[0]
+  const maxAbs = Math.abs(top.pctVal ?? 1)
 
-  return (
-    <Accordion
-      defaultOpen={defaultOpen}
-      accentColor={meta.accentColor}
-      badge={
-        <div
-          className="w-7 h-7 rounded flex items-center justify-center text-[11px] font-semibold"
-          style={{ background: meta.badgeBg, color: meta.badgeColor }}
-        >
-          W{wave}
-        </div>
-      }
-      title={meta.title}
-      subtitle={`${meta.subtitle} · ${meta.timeframe}`}
-      preview={
-        <div className="flex items-center gap-2 text-[12px]">
-          <span
-            className="mono-num font-medium"
-            style={{ color: meta.badgeColor }}
-          >
-            {stocks.length} سهم
-          </span>
-          <span style={{ color: 'var(--t3)' }}>·</span>
-          <span className="mono-num" style={{ color: 'var(--t2)' }}>
-            {stocks[0]?.pct}
-          </span>
-        </div>
-      }
-    >
-      <div className="p-3">
-        {/* Column headers */}
-        <div
-          className="hidden sm:grid grid-cols-[auto_1fr_auto_auto] gap-3 px-2.5 pb-2 text-[10px] uppercase tracking-[0.1em]"
-          style={{
-            color: 'var(--t3)',
-            fontFamily: 'var(--sans-lat)',
-            borderBottom: '1px solid var(--b1)',
-          }}
-        >
-          <span>الرمز</span>
-          <span>السهم</span>
-          <span>القطاع</span>
-          <span className="text-left">التأثير</span>
-        </div>
+  /* حساب متوسط التأثر */
+  const avgImpact = sorted.reduce((s, r) => s + (r.pctVal ?? 0), 0) / sorted.length
+  const isPosWave = sentiment.dir === 'pos'
 
-        <div className="pt-1 space-y-0.5">
-          {stocks.map((stock, i) => (
-            <StockRow key={`${stock.t}-${i}`} stock={stock} absScore={abs} />
-          ))}
-        </div>
-      </div>
-    </Accordion>
-  )
-}
-
-function StockRow({ stock, absScore }: { stock: RippleNode; absScore: number }) {
-  const { has, add, remove } = useWatchlistStore()
-  const inW = has(stock.t ?? '')
-
-  const pctValue = stock.pctVal ?? parseFloat(stock.pct ?? '0')
-  const isPos    = pctValue > 0
-  const isNeg    = pctValue < 0
-  const pctColor = isPos ? 'var(--gr)' : isNeg ? 'var(--rd)' : 'var(--t2)'
-
-  // نسبة طول البار مقارنة بأقوى تأثير ممكن
-  const barWidth = Math.min(100, (Math.abs(pctValue) / (absScore * 0.1 || 1)) * 20)
+  /* نص التغير في الـ preview */
+  const topPctText = (top.pctVal ?? 0) > 0
+    ? `+${(top.pctVal ?? 0).toFixed(2)}%`
+    : `${(top.pctVal ?? 0).toFixed(2)}%`
 
   return (
     <div
-      className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_auto_auto] gap-2 sm:gap-3 items-center px-2.5 py-2 rounded hover:bg-[var(--bg3)] transition-colors"
+      style={{
+        border: '1px solid var(--ink)',
+        background: open ? 'var(--cream-soft)' : 'var(--cream)',
+        marginBottom: '12px',
+        transition: 'background 0.15s',
+      }}
     >
-      {/* Ticker */}
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => inW ? remove(stock.t ?? '') : add(stock.t ?? '', stock.n ?? '')}
-          className="text-[14px] leading-none transition-transform hover:scale-110"
-          style={{ color: inW ? 'var(--ac)' : 'var(--t3)' }}
-          title={inW ? 'إزالة من المتابعة' : 'إضافة للمتابعة'}
-        >
-          {inW ? '★' : '☆'}
-        </button>
-        <span
-          className="mono-num text-[11px] font-medium px-1.5 py-0.5 rounded"
-          style={{ background: 'var(--ac2)', color: 'var(--ac)' }}
-        >
-          {stock.t}
-        </span>
-      </div>
-
-      {/* Name */}
-      <div className="min-w-0">
+      {/* ═══ Head ═══ */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full grid items-center"
+        style={{
+          padding: '20px 28px',
+          background: 'transparent',
+          border: 'none',
+          gridTemplateColumns: 'auto 1fr auto auto',
+          gap: '24px',
+          cursor: 'pointer',
+          fontFamily: 'var(--sans)',
+          textAlign: 'right',
+        }}
+      >
+        {/* Badge W1/W2/W3 */}
         <div
-          className="text-[13px] truncate"
-          style={{ color: 'var(--tx)' }}
+          className="flex items-center justify-center"
+          style={{
+            width: '44px',
+            height: '44px',
+            background: meta.badgeBg,
+            color: meta.badgeColor,
+            fontFamily: 'var(--sans-lat)',
+            fontSize: '13px',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            flexShrink: 0,
+            border: wave === 3 ? '1px solid var(--muted)' : 'none',
+          }}
         >
+          {meta.badge}
+        </div>
+
+        {/* Title */}
+        <div className="flex flex-col" style={{ gap: '4px', textAlign: 'right' }}>
+          <div style={{
+            fontSize: '16px',
+            fontWeight: 500,
+            color: 'var(--ink)',
+            letterSpacing: '-0.005em',
+          }}>
+            {meta.title}
+          </div>
+          <div style={{
+            fontFamily: 'var(--sans-lat)',
+            fontSize: '10px',
+            color: 'var(--muted)',
+            letterSpacing: '0.12em',
+          }}>
+            {meta.subtitle}
+          </div>
+        </div>
+
+        {/* Preview: أعلى سهم */}
+        <div
+          className="flex items-center"
+          style={{
+            gap: '14px',
+            paddingRight: '24px',
+            marginRight: '24px',
+            borderRight: '1px solid var(--rule)',
+          }}
+        >
+          <div>
+            <div style={{
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '10px',
+              color: 'var(--muted)',
+              letterSpacing: '0.12em',
+              marginBottom: '3px',
+            }}>
+              الأعلى تأثراً
+            </div>
+            <div className="flex items-center" style={{ gap: '12px' }}>
+              <span style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '11px',
+                color: 'var(--muted)',
+                background: 'var(--cream)',
+                padding: '3px 7px',
+                border: '1px solid var(--rule)',
+              }}>
+                {top.t}
+              </span>
+              <span style={{
+                fontSize: '14px',
+                fontWeight: 500,
+                color: 'var(--ink)',
+              }}>
+                {top.n}
+              </span>
+            </div>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '10px',
+              color: 'var(--muted)',
+              letterSpacing: '0.12em',
+              marginBottom: '3px',
+              textAlign: 'left',
+            }}>
+              التغير
+            </div>
+            <span style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: wave === 3 ? 'var(--ink)' : (isPosWave ? 'var(--bull)' : 'var(--bear)'),
+              direction: 'ltr',
+              display: 'inline-block',
+            }}>
+              {topPctText}
+            </span>
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          style={{
+            color: 'var(--ink)',
+            transition: 'transform 0.2s',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}
+        >
+          <path d="M 3 5 L 7 9 L 11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {/* ═══ Body ═══ */}
+      {open && (
+        <div style={{ borderTop: '1px solid var(--ink)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {sorted.map((r, idx) => (
+                <StockRow key={`${r.t}-${idx}`} stock={r} rank={idx + 1} maxAbs={maxAbs} wave={wave} isPosWave={isPosWave} />
+              ))}
+            </tbody>
+          </table>
+
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '14px 28px',
+              background: 'var(--cream-deep)',
+              borderTop: '1px solid var(--rule)',
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '11px',
+              color: 'var(--muted)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            <span>
+              {sorted.length} أسهم · متوسط التأثر{' '}
+              <strong style={{
+                color: wave === 3 ? 'var(--muted)' : (isPosWave ? 'var(--bull)' : 'var(--bear)'),
+              }}>
+                {avgImpact > 0 ? '+' : ''}{avgImpact.toFixed(2)}%
+              </strong>
+            </span>
+            <span>
+              قاعدة الربط: <strong style={{ color: 'var(--ink)' }}>{meta.rule}</strong>
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══ صف فردي ═══ */
+function StockRow({
+  stock, rank, maxAbs, wave, isPosWave,
+}: {
+  stock: RippleNode
+  rank:  number
+  maxAbs: number
+  wave: 1 | 2 | 3
+  isPosWave: boolean
+}) {
+  const [hover, setHover] = useState(false)
+  const pctVal = stock.pctVal ?? 0
+  const barW   = Math.max(2, Math.min(100, (Math.abs(pctVal) / maxAbs) * 100))
+
+  const barColor = wave === 1 ? 'var(--amber)' : wave === 2 ? 'var(--amber-deep)' : 'var(--muted)'
+  const valColor = wave === 3 ? 'var(--muted)' : (pctVal > 0 ? 'var(--bull)' : 'var(--bear)')
+
+  return (
+    <tr
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        borderBottom: '1px solid var(--rule)',
+        background: hover ? 'var(--cream)' : 'transparent',
+        transition: 'background 0.15s',
+      }}
+    >
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--muted)', width: '36px' }}>
+        {String(rank).padStart(2, '0')}
+      </td>
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle', fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--ink)', fontWeight: 500, width: '60px' }}>
+        {stock.t}
+      </td>
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle' }}>
+        <div style={{
+          fontSize: '14px',
+          fontWeight: 500,
+          color: 'var(--ink)',
+          letterSpacing: '-0.005em',
+        }}>
           {stock.n}
         </div>
-        <div
-          className="text-[10px] sm:hidden truncate"
-          style={{ color: 'var(--t3)' }}
-        >
-          {stock.s}
+        {stock.s && (
+          <div style={{
+            fontFamily: 'var(--sans-lat)',
+            fontSize: '10px',
+            color: 'var(--muted)',
+            marginTop: '2px',
+            letterSpacing: '0.03em',
+          }}>
+            {stock.s}
+          </div>
+        )}
+      </td>
+      <td style={{ padding: '14px 28px', verticalAlign: 'middle', fontSize: '12px', color: 'var(--muted)', width: '120px' }}>
+        {stock.desc ?? '—'}
+      </td>
+      <td style={{ padding: '14px 0', verticalAlign: 'middle', width: '200px' }}>
+        <div style={{ height: '2px', background: 'var(--rule)' }}>
+          <div style={{
+            width: `${barW}%`,
+            height: '100%',
+            background: barColor,
+            opacity: wave === 3 ? 0.5 : 1,
+            transition: 'width 0.6s ease',
+          }} />
         </div>
-      </div>
-
-      {/* Sector (desktop) */}
-      <span
-        className="hidden sm:block text-[11px] whitespace-nowrap"
-        style={{ color: 'var(--t3)' }}
-      >
-        {stock.s}
-      </span>
-
-      {/* Impact */}
-      <div className="flex items-center gap-2 justify-end">
-        <div
-          className="hidden md:block w-16 h-[3px] rounded-full overflow-hidden"
-          style={{ background: 'var(--b1)' }}
-        >
-          <div
-            style={{
-              width:      `${barWidth}%`,
-              height:     '100%',
-              background: pctColor,
-              transition: 'width 0.5s ease',
-              marginRight:isPos ? 0 : 'auto',
-              marginLeft: isNeg ? 0 : 'auto',
-            }}
-          />
-        </div>
-        <span
-          className="mono-num text-[13px] font-semibold w-14 text-left"
-          style={{ color: pctColor }}
-        >
-          {stock.pct}
-        </span>
-      </div>
-    </div>
+      </td>
+      <td style={{
+        padding: '14px 28px',
+        verticalAlign: 'middle',
+        fontFamily: 'var(--mono)',
+        fontSize: '14px',
+        fontWeight: 500,
+        color: valColor,
+        width: '90px',
+        textAlign: 'left',
+        direction: 'ltr',
+      }}>
+        {pctVal > 0 ? '+' : ''}{pctVal.toFixed(2)}%
+      </td>
+      <td style={{
+        padding: '14px 28px',
+        verticalAlign: 'middle',
+        width: '20px',
+        color: 'var(--ink)',
+        opacity: hover ? 1 : 0,
+        textAlign: 'left',
+        fontSize: '13px',
+        transition: 'all 0.2s',
+        transform: hover ? 'translateX(-4px)' : 'translateX(0)',
+      }}>
+        ←
+      </td>
+    </tr>
   )
 }
