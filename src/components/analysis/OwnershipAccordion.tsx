@@ -14,25 +14,29 @@ export default function OwnershipAccordion({ result }: Props) {
 
   /* ═══════════════════════════════════════════════════════
      فلسفة شبكة الملكية:
-     - تظهر فقط الأسهم المدرجة المتملّكة في السهم المحوري
-     - الكود = 4 أرقام (سهم مدرج)
-     - استبعاد الكيانات الحكومية والصناديق غير المدرجة
-       (PIF / GOSI / GPFF / SA / PUB / INS / FI / RT)
+     - السهم المحوري (مثلاً ينساب 2290)
+     - تتبع الملكية صعوداً (UPWARD): من يملك السهم المحوري
+       مثال: ينساب → سابك (51%) → أرامكو (35.07% غير مباشر)
+     - السبب: التأثير ينتقل من المملوك إلى المالك
+       (لو خسرت ينساب، تتأثر سابك ثم أرامكو)
+     - شرط: المالك سهم مدرج (4 أرقام)
+       استبعاد PIF/GOSI/GPFF/SA/PUB لأنهم صناديق وليسوا أسهماً
      - استبعاد السهم المحوري نفسه
      ═══════════════════════════════════════════════════════ */
   const owners = impacts
     .filter(i =>
       i.propagationDir === 'UPWARD' &&
       i.ownershipPct !== null &&
-      /^\d{4}$/.test(i.stockCode) &&        // ✅ سهم مدرج فقط (4 أرقام)
-      i.stockCode !== originCode             // ✅ استبعاد السهم نفسه
+      i.ownershipPct > 0 &&                   // ✅ ملكية فعلية
+      /^\d{4}$/.test(i.stockCode) &&           // ✅ سهم مدرج (4 أرقام)
+      i.stockCode !== originCode                // ✅ استبعاد السهم نفسه
     )
     .sort((a, b) => (b.ownershipPct ?? 0) - (a.ownershipPct ?? 0))
 
   if (owners.length === 0) return null
 
-  const topOwner = owners[0]
-  const maxPct   = topOwner.ownershipPct ?? 100
+  const topOwner   = owners[0]
+  const maxPct     = topOwner.ownershipPct ?? 100
   const originName = networkResult.meta.originStock.name
 
   return (
@@ -127,7 +131,7 @@ export default function OwnershipAccordion({ result }: Props) {
               color: 'var(--ink)',
               letterSpacing: '-0.005em',
             }}>
-              الأسهم المتملّكة في السهم المحوري
+              الأسهم المالكة للسهم المحوري
             </div>
             <div style={{
               fontFamily: 'var(--sans-lat)',
@@ -135,7 +139,7 @@ export default function OwnershipAccordion({ result }: Props) {
               color: 'var(--muted)',
               letterSpacing: '0.12em',
             }}>
-              {owners.length} {owners.length === 1 ? 'سهم مالك' : 'أسهم مالكة'} · مرتّبة تنازلياً بنسبة التملك
+              {owners.length} {owners.length === 1 ? 'سهم مالك' : 'أسهم مالكة'} · ينتقل التأثير صعوداً
             </div>
           </div>
 
@@ -244,10 +248,10 @@ export default function OwnershipAccordion({ result }: Props) {
             >
               <span>
                 قاعدة الربط:{' '}
-                <strong style={{ color: 'var(--ink)' }}>أسهم مدرجة تملك في السهم المحوري</strong>
+                <strong style={{ color: 'var(--ink)' }}>التأثير ينتقل من المملوك إلى المالك</strong>
               </span>
               <span>
-                إجمالي الأسهم المالكة ·{' '}
+                إجمالي الملاك ·{' '}
                 <strong style={{ color: 'var(--ink)' }}>
                   {owners.length}
                 </strong>
