@@ -60,88 +60,104 @@ export default function TickerBar() {
     return () => clearInterval(interval)
   }, [])
 
+  /* CSS متجاوب — حشوة أقل وتمرير أفقي على الموبايل */
+  const styleBlock = (
+    <style dangerouslySetInnerHTML={{ __html: `
+      .tkr-bar    { padding: 14px 48px; }
+      .tkr-label  { padding-left: 20px; margin-left: 20px; border-left: 1px solid var(--rule); }
+      .tkr-items  { gap: 36px; }
+
+      @media (max-width: 768px) {
+        .tkr-bar   { padding: 10px 14px; }
+        .tkr-label { padding-left: 10px; margin-left: 10px; font-size: 10px !important; letter-spacing: 0.1em !important; }
+        .tkr-items { gap: 22px; overflow-x: auto !important; -webkit-overflow-scrolling: touch; mask-image: none !important; -webkit-mask-image: none !important; scrollbar-width: none; }
+        .tkr-items::-webkit-scrollbar { display: none; }
+      }
+    `}} />
+  )
+
   if (loading) {
     return (
-      <div
-        className="max-w-[1320px] mx-auto flex items-center"
-        style={{
-          padding: '14px 48px',
-          borderTop: '1px solid var(--rule)',
-          borderBottom: '1px solid var(--rule)',
-        }}
-      >
-        <div className="shimmer h-3 w-48 rounded" />
-      </div>
+      <>
+        {styleBlock}
+        <div
+          className="tkr-bar max-w-[1320px] mx-auto flex items-center"
+          style={{
+            borderTop: '1px solid var(--rule)',
+            borderBottom: '1px solid var(--rule)',
+          }}
+        >
+          <div className="shimmer h-3 w-48 rounded" />
+        </div>
+      </>
     )
   }
 
   return (
-    <div
-      className="max-w-[1320px] mx-auto flex items-center overflow-hidden"
-      style={{
-        padding: '14px 48px',
-        borderTop: '1px solid var(--rule)',
-        borderBottom: '1px solid var(--rule)',
-      }}
-    >
-      {/* ═══ Strip label: TADAWUL · OPEN مع نقطة خضراء ═══ */}
+    <>
+      {styleBlock}
       <div
-        className="flex items-center"
+        className="tkr-bar max-w-[1320px] mx-auto flex items-center overflow-hidden"
         style={{
-          gap: '8px',
-          fontFamily: 'var(--sans-lat)',
-          fontSize: '11px',
-          fontWeight: 500,
-          color: 'var(--ink)',
-          letterSpacing: '0.15em',
-          paddingLeft: '20px',
-          marginLeft: '20px',
-          borderLeft: '1px solid var(--rule)',
-          flexShrink: 0,
+          borderTop: '1px solid var(--rule)',
+          borderBottom: '1px solid var(--rule)',
         }}
       >
-        <span
+        {/* Strip label: TADAWUL · OPEN */}
+        <div
+          className="tkr-label flex items-center"
           style={{
-            width: '6px',
-            height: '6px',
-            background: 'var(--bull)',
-            borderRadius: '50%',
-            display: 'inline-block',
+            gap: '8px',
+            fontFamily: 'var(--sans-lat)',
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'var(--ink)',
+            letterSpacing: '0.15em',
+            flexShrink: 0,
           }}
-        />
-        <span>TADAWUL · OPEN</span>
-      </div>
+        >
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              background: 'var(--bull)',
+              borderRadius: '50%',
+              display: 'inline-block',
+            }}
+          />
+          <span>TADAWUL · OPEN</span>
+        </div>
 
-      {/* ═══ Items ═══ */}
-      <div
-        className="flex overflow-hidden"
-        style={{
-          gap: '36px',
-          fontFamily: 'var(--mono)',
-          fontSize: '12px',
-          maskImage: 'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
-          WebkitMaskImage: 'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
-        }}
-      >
-        {tickers.map(tk => {
-          const isPos = tk.ch >= 0
-          return (
-            <div
-              key={tk.t}
-              className="flex"
-              style={{ gap: '8px', whiteSpace: 'nowrap' }}
-            >
-              <span style={{ color: 'var(--muted)' }}>{tk.t}</span>
-              <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
-                {tk.p.toFixed(2)}
-              </span>
-              <span style={{ color: isPos ? 'var(--bull)' : 'var(--bear)' }}>
-                {isPos ? '+' : '−'}{Math.abs(tk.ch).toFixed(2)}
-              </span>
-            </div>
-          )
-        })}
+        {/* Items */}
+        <div
+          className="tkr-items flex overflow-hidden"
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '12px',
+            maskImage: 'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
+            WebkitMaskImage: 'linear-gradient(90deg, transparent, black 3%, black 97%, transparent)',
+          }}
+        >
+          {tickers.map(tk => {
+            const isPos = tk.ch >= 0
+            return (
+              <div
+                key={tk.t}
+                className="flex"
+                style={{ gap: '8px', whiteSpace: 'nowrap' }}
+              >
+                <span style={{ color: 'var(--muted)' }}>{tk.t}</span>
+                <span style={{ color: 'var(--ink)', fontWeight: 500 }}>
+                  {tk.p.toFixed(2)}
+                </span>
+                <span style={{ color: isPos ? 'var(--bull)' : 'var(--bear)' }}>
+                  {isPos ? '+' : '−'}{Math.abs(tk.ch).toFixed(2)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
