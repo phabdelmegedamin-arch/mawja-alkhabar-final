@@ -40,11 +40,6 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
   const meta = WAVE_META[wave]
   const { ripples, sentiment, originCode } = result
 
-  /* ═══════════════════════════════════════════════════════
-     استخراج أسهم هذه الموجة
-     - استبعاد الـ head (السهم المحوري الأساسي)
-     - استبعاد السهم المحوري نفسه (إن ظهر بشكل آخر)
-     ═══════════════════════════════════════════════════════ */
   const stocks = ripples.filter(r =>
     !r.isHead &&
     r.wave === wave &&
@@ -53,22 +48,20 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
 
   if (stocks.length === 0) return null
 
-  /* ترتيب تنازلي حسب التأثر */
   const sorted = [...stocks].sort((a, b) => Math.abs(b.pctVal ?? 0) - Math.abs(a.pctVal ?? 0))
   const top    = sorted[0]
   const maxAbs = Math.abs(top.pctVal ?? 1)
 
-  /* حساب متوسط التأثر */
   const avgImpact = sorted.reduce((s, r) => s + (r.pctVal ?? 0), 0) / sorted.length
   const isPosWave = sentiment.dir === 'pos'
 
-  /* نص التغير في الـ preview */
   const topPctText = (top.pctVal ?? 0) > 0
     ? `+${(top.pctVal ?? 0).toFixed(2)}%`
     : `${(top.pctVal ?? 0).toFixed(2)}%`
 
   return (
     <div
+      className="wave-accordion"
       style={{
         border: '1px solid var(--ink)',
         background: open ? 'var(--cream-soft)' : 'var(--cream)',
@@ -76,24 +69,63 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
         transition: 'background 0.15s',
       }}
     >
+      {/* ═══════════════════════════════════════════════════
+         CSS داخلي — تخطيط الديسكتوب يبقى كما هو، الموبايل يبسّط
+         ═══════════════════════════════════════════════════ */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .wave-head {
+          padding: 20px 28px;
+          display: grid;
+          grid-template-columns: auto 1fr auto auto;
+          gap: 24px;
+          align-items: center;
+        }
+        .wave-preview { display: flex; }
+        .wave-table-row-mobile { display: none; }
+        .wave-table-row-desktop { display: table-row; }
+        .wave-footer {
+          padding: 14px 28px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+          .wave-head {
+            padding: 14px 14px;
+            grid-template-columns: auto 1fr auto;  /* بدون preview */
+            gap: 12px;
+          }
+          .wave-preview { display: none; }         /* preview مخفية على الموبايل */
+          .wave-head-title { font-size: 14px !important; }
+          .wave-head-sub   { font-size: 9px  !important; letter-spacing: 0.08em !important; }
+          .wave-badge      { width: 36px !important; height: 36px !important; font-size: 11px !important; }
+
+          /* الصف العادي للديسكتوب يخفى، نظهر صف الموبايل المبسط */
+          .wave-table-row-desktop { display: none; }
+          .wave-table-row-mobile  { display: block; padding: 12px 14px; border-bottom: 1px solid var(--rule); }
+
+          .wave-footer { padding: 12px 14px; font-size: 10px !important; }
+        }
+      `}} />
+
       {/* ═══ Head ═══ */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full grid items-center"
+        className="wave-head w-full"
         style={{
-          padding: '20px 28px',
           background: 'transparent',
           border: 'none',
-          gridTemplateColumns: 'auto 1fr auto auto',
-          gap: '24px',
           cursor: 'pointer',
           fontFamily: 'var(--sans)',
           textAlign: 'right',
         }}
       >
-        {/* Badge W1/W2/W3 */}
+        {/* Badge */}
         <div
-          className="flex items-center justify-center"
+          className="wave-badge flex items-center justify-center"
           style={{
             width: '44px',
             height: '44px',
@@ -111,28 +143,40 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
         </div>
 
         {/* Title */}
-        <div className="flex flex-col" style={{ gap: '4px', textAlign: 'right' }}>
-          <div style={{
-            fontSize: '16px',
-            fontWeight: 500,
-            color: 'var(--ink)',
-            letterSpacing: '-0.005em',
-          }}>
+        <div className="flex flex-col" style={{ gap: '4px', textAlign: 'right', minWidth: 0 }}>
+          <div
+            className="wave-head-title"
+            style={{
+              fontSize: '16px',
+              fontWeight: 500,
+              color: 'var(--ink)',
+              letterSpacing: '-0.005em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {meta.title}
           </div>
-          <div style={{
-            fontFamily: 'var(--sans-lat)',
-            fontSize: '10px',
-            color: 'var(--muted)',
-            letterSpacing: '0.12em',
-          }}>
+          <div
+            className="wave-head-sub"
+            style={{
+              fontFamily: 'var(--sans-lat)',
+              fontSize: '10px',
+              color: 'var(--muted)',
+              letterSpacing: '0.12em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {meta.subtitle}
           </div>
         </div>
 
-        {/* Preview: أعلى سهم */}
+        {/* Preview — مخفية على الموبايل */}
         <div
-          className="flex items-center"
+          className="wave-preview items-center"
           style={{
             gap: '14px',
             paddingRight: '24px',
@@ -204,6 +248,7 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
             color: 'var(--ink)',
             transition: 'transform 0.2s',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            flexShrink: 0,
           }}
         >
           <path d="M 3 5 L 7 9 L 11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -213,18 +258,39 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
       {/* ═══ Body ═══ */}
       {open && (
         <div style={{ borderTop: '1px solid var(--ink)' }}>
+          {/* صفوف الموبايل المبسطة */}
+          <div>
+            {sorted.map((r, idx) => (
+              <MobileStockRow
+                key={`m-${r.t}-${idx}`}
+                stock={r}
+                rank={idx + 1}
+                maxAbs={maxAbs}
+                wave={wave}
+                isPosWave={isPosWave}
+              />
+            ))}
+          </div>
+
+          {/* جدول الديسكتوب — يخفى على الموبايل */}
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <tbody>
               {sorted.map((r, idx) => (
-                <StockRow key={`${r.t}-${idx}`} stock={r} rank={idx + 1} maxAbs={maxAbs} wave={wave} isPosWave={isPosWave} />
+                <DesktopStockRow
+                  key={`d-${r.t}-${idx}`}
+                  stock={r}
+                  rank={idx + 1}
+                  maxAbs={maxAbs}
+                  wave={wave}
+                  isPosWave={isPosWave}
+                />
               ))}
             </tbody>
           </table>
 
           <div
-            className="flex items-center justify-between"
+            className="wave-footer"
             style={{
-              padding: '14px 28px',
               background: 'var(--cream-deep)',
               borderTop: '1px solid var(--rule)',
               fontFamily: 'var(--sans-lat)',
@@ -251,8 +317,82 @@ export default function WaveAccordion({ result, wave, defaultOpen = false }: Pro
   )
 }
 
-/* ═══ صف فردي ═══ */
-function StockRow({
+/* ═══ صف الموبايل (مبسط) ═══ */
+function MobileStockRow({
+  stock, rank, maxAbs, wave, isPosWave,
+}: {
+  stock: RippleNode
+  rank:  number
+  maxAbs: number
+  wave: 1 | 2 | 3
+  isPosWave: boolean
+}) {
+  const pctVal = stock.pctVal ?? 0
+  const barW   = Math.max(2, Math.min(100, (Math.abs(pctVal) / maxAbs) * 100))
+  const barColor = wave === 1 ? 'var(--amber)' : wave === 2 ? 'var(--amber-deep)' : 'var(--muted)'
+  const valColor = wave === 3 ? 'var(--muted)' : (pctVal > 0 ? 'var(--bull)' : 'var(--bear)')
+
+  return (
+    <div
+      className="wave-table-row-mobile"
+      style={{ display: 'none' }}
+    >
+      <div className="flex items-center justify-between" style={{ gap: '10px', marginBottom: '6px' }}>
+        <div className="flex items-center" style={{ gap: '8px', minWidth: 0, flex: 1 }}>
+          <span style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '10px',
+            color: 'var(--muted)',
+            flexShrink: 0,
+          }}>
+            {String(rank).padStart(2, '0')}
+          </span>
+          <span style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '11px',
+            color: 'var(--ink)',
+            fontWeight: 500,
+            flexShrink: 0,
+          }}>
+            {stock.t}
+          </span>
+          <span style={{
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'var(--ink)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {stock.n}
+          </span>
+        </div>
+        <span style={{
+          fontFamily: 'var(--mono)',
+          fontSize: '13px',
+          fontWeight: 500,
+          color: valColor,
+          direction: 'ltr',
+          flexShrink: 0,
+        }}>
+          {pctVal > 0 ? '+' : ''}{pctVal.toFixed(2)}%
+        </span>
+      </div>
+      <div style={{ height: '2px', background: 'var(--rule)' }}>
+        <div style={{
+          width: `${barW}%`,
+          height: '100%',
+          background: barColor,
+          opacity: wave === 3 ? 0.5 : 1,
+          transition: 'width 0.6s ease',
+        }} />
+      </div>
+    </div>
+  )
+}
+
+/* ═══ صف الديسكتوب الكامل (الأصلي) ═══ */
+function DesktopStockRow({
   stock, rank, maxAbs, wave, isPosWave,
 }: {
   stock: RippleNode
@@ -270,6 +410,7 @@ function StockRow({
 
   return (
     <tr
+      className="wave-table-row-desktop"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
